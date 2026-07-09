@@ -2,7 +2,7 @@ class Config:
     SEED = 42
     seq_len =64
     n_embed = 96
-    batch_size = 12
+    batch_size = 32
     vocab_size = 2000# data vocab size + special tokens = 11706 + 4
     n_heads = 8
     n_layers = 2
@@ -11,7 +11,7 @@ class Config:
     eta_o= 2.9e-03
     exp_dir = "exp" 
     pos_learnable = True
-    optim_type = "sgd"
+    optim_type = "adam"
     epoch = 1
     n_iter= 26
     tau_o = 2
