@@ -1,8 +1,20 @@
 import jax
 from jax import numpy as jnp, random, jit
-from ngclearn.components import GaussianErrorCell as ErrorCell, RateCell, HebbianSynapse, StaticSynapse
+from ngclearn.components import GaussianErrorCell, RateCell, HebbianSynapse, StaticSynapse
 from ngclearn.utils.distribution_generator import DistributionGenerator as dist
 from config import Config as config
+from utils.precision_error_cell import AdaptivePrecisionErrorCell
+
+
+def _make_error_cell(name, n_units, batch_size, site_name):
+    sites = getattr(config, "precision_sites", None)
+    use_here = getattr(config, "use_precision_weighting", False) and (sites is None or site_name in sites)
+    if use_here:
+        return AdaptivePrecisionErrorCell(name, n_units=n_units, batch_size=batch_size,
+                                           momentum=config.precision_momentum,
+                                           sigma_min=config.precision_sigma_min,
+                                           sigma_init=config.precision_sigma_init)
+    return GaussianErrorCell(name, n_units=n_units, batch_size=batch_size)
 
 class MLP:
     """
@@ -25,10 +37,13 @@ class MLP:
         self.W_mlp2 = HebbianSynapse(
                     f"{prefix}W_mlp2", shape=(4*n_embed, n_embed), batch_size= batch_size * seq_len, eta=eta, weight_init=dist.gaussian(mean=0.0, std=0.01) ,
                     bias_init=dist.constant(value=0.), w_bound=1., optim_type=optim_type, sign_value=-1.0, key=subkeys[5],prior=("constant", 0.))
-        self.e_mlp = ErrorCell(f"{prefix}e_mlp", n_units=n_embed, 
-                                  batch_size=batch_size * seq_len) # shape=(seq_len, n_embed, 1),   
-        self.e_mlp1 = ErrorCell(f"{prefix}e_mlp1", n_units= 4* n_embed, 
-                                  batch_size=batch_size * seq_len)
+        # self.e_mlp = ErrorCell(f"{prefix}e_mlp", n_units=n_embed, 
+          #                        batch_size=batch_size * seq_len) # shape=(seq_len, n_embed, 1),   
+        # self.e_mlp1 = ErrorCell(f"{prefix}e_mlp1", n_units= 4* n_embed, 
+          #                        batch_size=batch_size * seq_len)
+        
+        self.e_mlp = _make_error_cell(f"{prefix}e_mlp", n_embed, batch_size * seq_len, "e_mlp")
+        self.e_mlp1 = _make_error_cell(f"{prefix}e_mlp1", 4 * n_embed, batch_size * seq_len, "e_mlp1")
         
         
         self.E_mlp1 = StaticSynapse(f"{prefix}E_mlp1", shape=(4 * n_embed,n_embed), weight_init=dist.constant(value=0.0), bias_init=None, key=subkeys[4])

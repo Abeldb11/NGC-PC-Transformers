@@ -1,7 +1,18 @@
 from jax import numpy as jnp, random
-from ngclearn.components import GaussianErrorCell as ErrorCell, RateCell, HebbianSynapse, StaticSynapse
+from ngclearn.components import GaussianErrorCell, RateCell, HebbianSynapse, StaticSynapse
 from ngclearn.utils.distribution_generator import DistributionGenerator as dist
 from config import Config as config
+from utils.precision_error_cell import AdaptivePrecisionErrorCell
+
+def _make_error_cell(name, n_units, batch_size, site_name):
+    sites = getattr(config, "precision_sites", None)
+    use_here = getattr(config, "use_precision_weighting", False) and (sites is None or site_name in sites)
+    if use_here:
+        return AdaptivePrecisionErrorCell(name, n_units=n_units, batch_size=batch_size,
+                                           momentum=config.precision_momentum,
+                                           sigma_min=config.precision_sigma_min,
+                                           sigma_init=config.precision_sigma_init)
+    return GaussianErrorCell(name, n_units=n_units, batch_size=batch_size)
 
 
 class Output:
@@ -30,7 +41,9 @@ class Output:
         self.W_out = HebbianSynapse(
                     "W_out", shape=(n_embed, vocab_size), batch_size= batch_size * seq_len, eta=config.eta_o, weight_init=dist.gaussian(mean=0.0, std=0.02),
                     bias_init=dist.constant(value=0.), w_bound=1., optim_type="adam", sign_value= 1.0, key=subkeys[4],prior=("constant", 0.))
-        self.e_out = ErrorCell("e_out", n_units=vocab_size, 
-                                  batch_size=batch_size * seq_len) # shape=(seq_len, vocab_size, 1),
+        # self.e_out = ErrorCell("e_out", n_units=vocab_size, 
+                                  # batch_size=batch_size * seq_len) # shape=(seq_len, vocab_size, 1),
+        
+        self.e_out = _make_error_cell("e_out", vocab_size, batch_size * seq_len, "e_out")
         self.E_out = StaticSynapse(
                     "E_out", shape=(vocab_size, n_embed), weight_init=dist.constant(value=0.0),  bias_init=None, key=subkeys[4])

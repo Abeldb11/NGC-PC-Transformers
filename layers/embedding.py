@@ -1,9 +1,21 @@
 
-from ngclearn.components import GaussianErrorCell as ErrorCell, RateCell
+from ngclearn.components import GaussianErrorCell, RateCell
 from ngclearn.utils.distribution_generator import DistributionGenerator as dist
 from config import Config as config
 from utils.embed_utils import EmbeddingSynapse
+from utils.precision_error_cell import AdaptivePrecisionErrorCell
 from jax import random
+
+
+def _make_error_cell(name, n_units, batch_size, site_name):
+    sites = getattr(config, "precision_sites", None)
+    use_here = getattr(config, "use_precision_weighting", False) and (sites is None or site_name in sites)
+    if use_here:
+        return AdaptivePrecisionErrorCell(name, n_units=n_units, batch_size=batch_size,
+                                           momentum=config.precision_momentum,
+                                           sigma_min=config.precision_sigma_min,
+                                           sigma_init=config.precision_sigma_init)
+    return GaussianErrorCell(name, n_units=n_units, batch_size=batch_size)
 
 class EMBEDDING:
     """
@@ -28,8 +40,10 @@ class EMBEDDING:
                 optim_type=optim_type,
                 key=subkeys[0])
             
-        self.e_embed = ErrorCell("e_embed", n_units=embed_dim, 
-                                  batch_size=batch_size * seq_len) # shape=(seq_len, embed_dim, 1),
+        # self.e_embed = ErrorCell("e_embed", n_units=embed_dim, 
+          #                        batch_size=batch_size * seq_len) # shape=(seq_len, embed_dim, 1),
+        
+        self.e_embed = _make_error_cell("e_embed", embed_dim, batch_size * seq_len, "e_embed")
     
             
 
