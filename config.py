@@ -35,3 +35,11 @@ class Config:
 
     # set True to Use jax.lax.scan fused advance loop (faster, minor floating-point differences from the normal python loop)
     fused_advance = True
+
+    use_precision_weighting = False
+    precision_momentum = 0.95
+    precision_sigma_min = 0.1
+    precision_sigma_init = 1.0
+
+    
+    precision_sites = None 

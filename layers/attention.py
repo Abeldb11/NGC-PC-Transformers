@@ -1,11 +1,22 @@
-from ngclearn.components import GaussianErrorCell as ErrorCell, RateCell, HebbianSynapse, StaticSynapse
+from ngclearn.components import GaussianErrorCell, RateCell, HebbianSynapse, StaticSynapse
 from ngclearn.utils.distribution_generator import DistributionGenerator as dist
 from jax import numpy as jnp, random, jit
 import jax
 from config import Config as config
 from utils.attention_utils import AttentionBlock
 from utils.attn_ratecell import AttnRateCell
+from utils.precision_error_cell import AdaptivePrecisionErrorCell
 
+
+def _make_error_cell(name, n_units, batch_size, site_name):
+    sites = getattr(config, "precision_sites", None)
+    use_here = getattr(config, "use_precision_weighting", False) and (sites is None or site_name in sites)
+    if use_here:
+        return AdaptivePrecisionErrorCell(name, n_units=n_units, batch_size=batch_size,
+                                           momentum=config.precision_momentum,
+                                           sigma_min=config.precision_sigma_min,
+                                           sigma_init=config.precision_sigma_init)
+    return GaussianErrorCell(name, n_units=n_units, batch_size=batch_size)
 
 class Attention:
     """
@@ -62,9 +73,12 @@ class Attention:
                                                       ),
                             bias_init=dist.constant(value=0.), w_bound=1., 
                             optim_type=optim_type, sign_value= -1.0, key=subkeys[3], prior=("constant", 0.))
-        self.e_qkv = ErrorCell(f"{prefix}e_qkv", n_units=n_embed, batch_size=batch_size * seq_len) 
-        self.e_attn = ErrorCell(f"{prefix}e_attn", n_units=n_embed, 
-                                  batch_size=batch_size * seq_len) # shape=(seq_len, n_embed, 1),
+        # self.e_qkv = ErrorCell(f"{prefix}e_qkv", n_units=n_embed, batch_size=batch_size * seq_len) 
+        # self.e_attn = ErrorCell(f"{prefix}e_attn", n_units=n_embed, 
+                                  # batch_size=batch_size * seq_len) # shape=(seq_len, n_embed, 1),
+        
+        self.e_qkv = _make_error_cell(f"{prefix}e_qkv", n_embed, batch_size * seq_len, "e_qkv")
+        self.e_attn = _make_error_cell(f"{prefix}e_attn", n_embed, batch_size * seq_len, "e_attn")
         
         self.E_q = StaticSynapse(f"{prefix}E_q", shape=(n_embed, n_embed),
                         weight_init=dist.constant(value=0.0), bias_init=None,  key=subkeys[4])
