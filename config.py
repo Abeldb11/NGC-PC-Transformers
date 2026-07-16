@@ -14,7 +14,7 @@ class Config:
     pos_learnable = True
     optim_type = "sgd"
     epoch = 1
-    n_iter= 26
+    n_iter= 50
     tau_o = 2
     # Approximate Xavier scaling: 1 / sqrt(512) is about 0.04
     # wub = 0.035284728580901155
