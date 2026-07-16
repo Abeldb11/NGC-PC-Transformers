@@ -6,9 +6,9 @@ class Config:
     vocab_size = 2000# data vocab size + special tokens = 11706 + 4
     n_heads = 8
     n_layers = 2
-    dropout_rate = 0.00
+    dropout_rate = 0.1
     # eta = 4.919042890915579e-06
-    eta = 1e-5
+    eta = 5e-5
     eta_o= 2.9e-03
     exp_dir = "exp" 
     pos_learnable = True
