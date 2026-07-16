@@ -28,9 +28,14 @@ def main():
     train_loader, valid_loader, _ = data_loader.load_and_prepare_data()
     
     model = NGCTransformer(dkey, batch_size=batch_size, seq_len=seq_len, n_embed=n_embed, vocab_size=vocab_size, n_layers=n_layers, n_heads=n_heads,
-                          T=T, dt=1., tau_m=tau_m , act_fx=act_fx, eta=eta, dropout_rate= dropout_rate, exp_dir="exp",
-                  loadDir= None, optim_type=optim_type, wub = wub, wlb= wlb, model_name="ngc_transformer" )
+                          T=T, dt=1., tau_m=tau_m , act_fx=act_fx, eta=eta, dropout_rate= dropout_rate, exp_dir=config.exp_dir,
+                  loadDir= None, optim_type=optim_type, wub = wub, wlb= wlb,position_encoding=config.postion_encoding,pos_learnable=config.pos_learnable,rope_theta=config.rope_theta, model_name="ngc_transformer" )
 
+    #print the selected mode
+    print(f"Position encoding: {config.position_encoding}")
+    if config.position_encoding == "positional":
+         print(f"Learnable positions: {config.pos_learnable}")
+    
     print(f" {model.count_parameters()/1e6:.2f} M parameters")
 
     def train_model(data_loader):

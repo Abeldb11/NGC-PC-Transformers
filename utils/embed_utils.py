@@ -9,10 +9,27 @@ from ngclearn.utils import tensorstats
 import os
 from pathlib import Path
 
+@partial(jit, static_argnums=[0,1])
+def _create_sinusoidal_embeddings(seq_len, embed_dim):
+    """
+    Create fixed absolute sinusoidal positional embeddings.
+
+    Returns:
+        Shape: (seq_len, embed_dim)
+    """
+    position = jnp.arange(seq_len)[:, None]
+    div_term = jnp.exp(jnp.arange(0, embed_dim, 2) * 
+                      (-jnp.log(10000.0) / embed_dim))
+    angles = position * div_term
+    embeddings = jnp.zeros((seq_len, embed_dim))
+    embeddings = embeddings.at[:, 0::2].set(jnp.sin(angles))
+    embeddings = embeddings.at[:, 1::2].set(jnp.cos(angles))
+    return embeddings
+
 @partial(jit, static_argnums=[2, 3, 4, 5])
 def _compute_embedding_updates(inputs, post, vocab_size, seq_len, embed_dim, batch_size):
     """
-    Compute updates for word embeddings
+    Compute updates for word embeddings and postional embeddings
     """
     
     # Flatten for processing
@@ -23,8 +40,18 @@ def _compute_embedding_updates(inputs, post, vocab_size, seq_len, embed_dim, bat
     d_word_weights = jnp.zeros((vocab_size, embed_dim))
     
     d_word_weights = d_word_weights.at[flat_tokens].add(flat_errors)
+
+
+    # postional embededings update
+
+    d_pos_weights = jnp.zeros((seq_len, embed_dim))
+    
+    batch_positions = jnp.tile(jnp.arange(seq_len), batch_size).astype(jnp.int32)
+    d_pos_weights = jax.lax.cond(
+      lambda: d_pos_weights.at[batch_positions].add(flat_errors), lambda: d_pos_weights
+    )
             
-    return d_word_weights
+    return d_word_weights, d_pos_weights
 
 class EmbeddingSynapse(JaxComponent):
     """
@@ -60,7 +87,7 @@ class EmbeddingSynapse(JaxComponent):
 
     def __init__(
             self, name, vocab_size, seq_len, embed_dim, batch_size,
-            eta, optim_type, weight_scale=0.02,
+            eta, optim_type,position_encoding="rope", pos_learnable=True, weight_scale=0.02,
             **kwargs
     ):
         super().__init__(name, **kwargs)
@@ -72,23 +99,44 @@ class EmbeddingSynapse(JaxComponent):
         self.eta = eta
         self.weight_scale = weight_scale
         self.optim_type = optim_type
-
-        key =random.PRNGKey(1234)
-        word_weights = random.normal(key, (vocab_size, embed_dim)) * weight_scale
-
+        self.position_encoding = position_encoding
+        self.use_postional = (self.position_encoding == "positional")
+        self.pos_learnable = pos_learnable
+        #separate keys for word and positional embeddings
+        word_key =random.PRNGKey(1234)
+        pos_key = random.fold_in(word_key,1)
+        
+        word_weights = random.normal(word_key, (vocab_size, embed_dim)) * weight_scale
+        if self.use_postional:
+            if self.pos_learnable:
+                pos_weights = random.normal(pos_key, (seq_len, embed_dim)) * weight_scale
+            else:
+                pos_weights = _create_sinusoidal_embeddings(seq_len, embed_dim)
+        else:
+            # unused in RopE mode
+            pos_weights = jnp.zeros((seq_len, embed_dim))
+        
         ## Compartments
         self.inputs = Compartment(jnp.zeros((batch_size, seq_len), dtype=jnp.int32))
         self.outputs = Compartment(jnp.zeros((batch_size, seq_len, embed_dim)))
         self.word_weights = Compartment(word_weights)
+        self.pos_weights = Compartment(pos_weights)
         self.post = Compartment(jnp.zeros((batch_size, seq_len, embed_dim)))
         
         self.dWordWeights = Compartment(jnp.zeros((vocab_size, embed_dim)))
-        
+        self.dPosWeights = Compartment(jnp.zeros((seq_len, embed_dim)))
         # Optimization
         self.opt = get_opt_step_fn(optim_type, eta=self.eta)
         self.word_opt_params = Compartment(
             get_opt_init_fn(optim_type)([self.word_weights.get()])
         )
+        #postion optimizer for learned only
+        if(self.use_postional and self.pos_learnable):
+            self.pos_opt_params = Compartment(
+                get_opt_init_fn(optim_type)([self.pos_weights.get()])
+            )
+        else:
+            self.pos_opt_params = Compartment(None)
     @compilable
     def advance_state(self):
         """
@@ -104,13 +152,23 @@ class EmbeddingSynapse(JaxComponent):
         word_embeds_flat = word_weights[flat_tokens]
         word_embeds = word_embeds_flat.reshape(batch_size, seq_len, embed_dim)
         
-        self.outputs.set(word_embeds)
+        if self.use_postional:
+            pos_weights = self.pos_weights.get()
+            positions = jnp.arange(seq_len)
+            pos_embeds= pos_weights[positions]
+            pos_embeds_batch = jnp.broadcast_to(pos_embeds, (batch_size, seq_len, embed_dim))
+
+            outputs = (word_embeds +pos_embeds_batch)
+        else:
+            #RoPE mode
+            outputs = word_embeds
+        self.outputs.set(outputs)
 
   
     @compilable
     def evolve(self):
         """
-        Learning step: Hebbian updates for word embeddings
+        Learning step: Hebbian updates for word embeddings and update postional embeddings only when using learned absolute postional embeddings
         """
         opt = self.opt.get()
         vocab_size = self.vocab_size.get()
@@ -120,11 +178,12 @@ class EmbeddingSynapse(JaxComponent):
         inputs = self.inputs.get()
         post = self.post.get()
         word_weights = self.word_weights.get()
+        pos_weights = self.pos_weights.get()
         word_opt_params = self.word_opt_params.get()
-
+        
         # Compute embedding updates
         inputs= inputs.astype(jnp.int32)
-        d_word_weights = _compute_embedding_updates(
+        (d_word_weights, d_pos_weights)  = _compute_embedding_updates(
             inputs, post, vocab_size, seq_len, embed_dim, batch_size
         )
         
@@ -133,8 +192,21 @@ class EmbeddingSynapse(JaxComponent):
         )
         
         self.word_weights.set(new_word_weights)
-        self.dWordWeights.set(d_word_weights)
         self.word_opt_params.set(word_opt_params)
+        self.dWordWeights.set(d_word_weights)
+
+        if (self.use_postional and self.pos_learnable):
+            pos_opt_params = self.pos_opt_params.get()
+            pos_opt_params, [new_pos_weights] = opt(
+                pos_opt_params, [pos_weights], [d_pos_weights]
+            )
+            self.pos_weights.set(new_pos_weights)
+            self.pos_opt_params.set(pos_opt_params)
+            self.dPosWeights.set(d_pos_weights)
+        else:
+            #fixed sinusoidal postions and RoPE 
+            self.dPosWeights.set(jnp.zeros_like(pos_weights))
+        
     @compilable
     def reset(self):
         """
@@ -149,11 +221,12 @@ class EmbeddingSynapse(JaxComponent):
         outputs = jnp.zeros((batch_size, seq_len, embed_dim))
         post = jnp.zeros((batch_size, seq_len, embed_dim))
         dWordWeights = jnp.zeros((vocab_size, embed_dim))
-        
+        dPosWeights = jnp.zeros((seq_len, embed_dim))
         self.inputs.set(inputs)
         self.outputs.set(outputs)
         self.post.set(post)
         self.dWordWeights.set(dWordWeights)
+        self.dPosWeights.set(dPosWeights)
 
 
     @classmethod
@@ -219,15 +292,22 @@ class EmbeddingSynapse(JaxComponent):
 
 
     def save(self, directory, **kwargs):
-        """Save word embedding parameters to disk."""
+        """Save word embedding parameters and learned positional embedding parameters to disk."""
         
         Path(directory).mkdir(parents=True, exist_ok=True)
         file_name = os.path.join(directory, f"{self.name}.npz")
         
-        jnp.savez(
-            file_name,
-            word_weights=self.word_weights.get()
-        )
+        if (self.use_positional and self.pos_learnable):
+            jnp.savez(
+                file_name,
+                word_weights=(self.word_weights.get()),
+                pos_weights=(self.pos_weights.get()),
+            )
+        else:
+            jnp.savez(
+                file_name,
+                word_weights=( self.word_weights.get()),
+            )
       
 
     def load(self, directory, **kwargs):
@@ -237,3 +317,15 @@ class EmbeddingSynapse(JaxComponent):
         data = jnp.load(file_name)
         
         self.word_weights.set(data['word_weights'])
+
+        if (self.use_positional and self.pos_learnable ):
+            if "pos_weights" not in data:
+                raise ValueError(
+                    "The checkpoint has no "
+                    "pos_weights. It may have "
+                    "been trained using RoPE."
+                )
+
+            self.pos_weights.set(
+                data["pos_weights"]
+            )

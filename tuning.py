@@ -108,7 +108,10 @@ def create_model_with_all_params(trial_number, params, cfg):
         "optim_type": cfg.optim_type,
         "wub": cfg.wub,
         "wlb": cfg.wlb,
-        "model_name": f"trial_{trial_number}"
+        "model_name": f"trial_{trial_number}",
+        "position_encoding": cfg.position_encoding,
+        "pos_learnable": cfg.pos_learnable,
+        "rope_theta": cfg.rope_theta,
     }
 
     model = NGCTransformer(**model_args)
