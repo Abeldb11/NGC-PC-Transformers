@@ -229,36 +229,100 @@ class EmbeddingSynapse(JaxComponent):
 
     @classmethod
     def help(cls):
-        """Component help function"""
+        """
+        Return metadata describing the embedding component.
+
+        EmbeddingSynapse supports two position-encoding configurations:
+
+        - rope: returns word embeddings only. RoPE is applied later to
+        the query and key tensors in the attention component.
+        - positional: adds learned or fixed absolute positional
+        embeddings to the word embeddings.
+        """
         properties = {
-            "synapse_type": "EmbeddingSynapse - returns a single word embedding representation"
-        }
+            "synapse_type": (
+                "EmbeddingSynapse - performs token embedding lookup and "
+                "optionally adds absolute positional embeddings. In RoPE "
+                "mode, rotation is applied later to attention queries and keys."
+            )
+            }
+
         compartment_props = {
-            "inputs": 
-                {"inputs": "Input token indices (batch_size, seq_len)",
-                 "post": "Post-synaptic error signals for learning"},
-            "states":
-                {"word_weights": "Word embedding matrix (vocab_size, embed_dim)",
-                 "key": "JAX PRNG key"},
-            "analytics":
-                {"dWordWeights": "Word embedding adjustment matrix"},
-            "outputs":
-                {"outputs": "Embeddings (batch_size, seq_len, embed_dim)"},
+            "inputs": {
+                "inputs": (
+                    "Input token indices "
+                    "(batch_size, seq_len)"
+                ),
+                "post": (
+                    "Post-synaptic error signals used for learning "
+                    "(batch_size, seq_len, embed_dim)"
+                ),
+            },
+            "states": {
+                "word_weights": (
+                    "Word embedding matrix "
+                    "(vocab_size, embed_dim)"
+                ),
+                "pos_weights": (
+                    "Absolute positional embedding matrix "
+                    "(seq_len, embed_dim); used only in positional mode"
+                ),
+                "word_opt_params": (
+                    "Optimizer state for the word embedding matrix"
+                ),
+                "pos_opt_params": (
+                    "Optimizer state for learned positional embeddings; "
+                    "inactive in RoPE and fixed positional modes"
+                ),
+            },
+            "analytics": {
+                "dWordWeights": (
+                    "Word embedding update matrix "
+                    "(vocab_size, embed_dim)"
+                ),
+                "dPosWeights": (
+                    "Positional embedding update matrix "
+                    "(seq_len, embed_dim); zero unless learned "
+                    "positional embeddings are enabled"
+                ),
+            },
+            "outputs": {
+                "outputs": (
+                    "Embedding output "
+                    "(batch_size, seq_len, embed_dim)"
+                ),
+            },
         }
+
         hyperparams = {
-            "vocab_size": "Size of vocabulary",
-            "seq_len": "Maximum sequence length", 
-            "embed_dim": "Dimensionality of embeddings",
+            "vocab_size": "Size of the token vocabulary",
+            "seq_len": "Maximum input sequence length",
+            "embed_dim": "Dimensionality of each embedding",
             "batch_size": "Batch size dimension",
-            "eta": "Global learning rate",
-            "optim_type": "Optimization scheme",
-            "weight_scale": "Weight initialization scale"
+            "position_encoding": (
+                "Position-encoding mode: 'rope' or 'positional'"
+            ),
+            "pos_learnable": (
+                "Whether absolute positional embeddings are trainable; "
+                "used only when position_encoding='positional'"
+            ),
+            "eta": "Optimizer learning rate",
+            "optim_type": "Optimization algorithm",
+            "weight_scale": "Embedding initialization scale",
         }
-        info = {cls.__name__: properties,
-                "compartments": compartment_props,
-                "dynamics": "outputs = word_embedding[inputs]",
-                "hyperparameters": hyperparams}
-        return info
+
+        info = {
+            cls.__name__: properties,
+            "compartments": compartment_props,
+            "dynamics": (
+                "rope: outputs = word_embedding[inputs]; "
+                "positional: outputs = word_embedding[inputs] + "
+                "position_embedding[positions]"
+            ),
+            "hyperparameters": hyperparams,
+        }
+
+        return info    
     def __repr__(self):
         # FIX: Replaced the non-existent Compartment.is_compartment with isinstance(..., Compartment)
         comps = [varname for varname in dir(self) if isinstance(getattr(self, varname), Compartment)]
@@ -274,15 +338,38 @@ class EmbeddingSynapse(JaxComponent):
         for c in comps:
             # Get the actual Compartment object
             compartment_obj = getattr(self, c) 
+            compartment_value = compartment_obj.get()
             
-            # Get tensor statistics (assuming tensorstats is correctly imported)
-            stats = tensorstats(compartment_obj.get())
-            
-            if stats is not None:
-                line = [f"{k}: {v}" for k, v in stats.items()]
-                line = ", ".join(line)
-            else:
+            # This check is necessary because pos_opt_params contains None
+            # in RoPE mode and fixed positional-embedding mode.
+            # tensorstats() should not be called on None.
+            if compartment_value is None:
                 line = "None"
+
+            else:
+                try:
+                    # Get tensor statistics (assuming tensorstats is correctly imported)
+                    stats = tensorstats(compartment_value)
+
+                except (TypeError, ValueError, AttributeError):
+                    # Optimizer-state compartments may contain lists,
+                    # tuples, or other nested structures instead of one
+                    # tensor. Represent their type without changing them.
+                    stats = None
+                    line = (
+                        f"type: "
+                        f"{type(compartment_value).__name__}"
+                    )
+
+                else:
+                    if stats is not None:
+                        line = [
+                            f"{k}: {v}"
+                            for k, v in stats.items()
+                        ]
+                        line = ", ".join(line)
+                    else:
+                        line = "None"
                 
             lines += f"  {f'({c})'.ljust(maxlen)}{line}\n"
             
