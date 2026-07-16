@@ -7,7 +7,8 @@ class Config:
     n_heads = 8
     n_layers = 2
     dropout_rate = 0.00
-    eta = 4.919042890915579e-06
+    # eta = 4.919042890915579e-06
+    eta = 5e-5
     eta_o= 2.9e-03
     exp_dir = "exp" 
     pos_learnable = True
