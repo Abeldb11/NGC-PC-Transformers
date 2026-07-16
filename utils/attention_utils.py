@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from utils.model_util import d_softmax_vjp
 from utils.rope_utils import apply_rotary_emb, apply_rotary_emb_inv, precompute_freqs_cis_real
 
-@partial(jit, static_argnums=[6, 7, 8, 9, 10])
+@partial(jit, static_argnums=[6, 7, 8, 9, 10,11])
 def _compute_attention(Q, K, V, cos, sin, mask, n_heads, d_head, dropout_rate, seq_len, batch_size, use_rope,  key):
     """
     Compute multi-head attention with RoPE
@@ -53,7 +53,7 @@ def _compute_attention(Q, K, V, cos, sin, mask, n_heads, d_head, dropout_rate, s
     return attention, s_c, q_used, k_used, v
 
 
-@partial(jit, static_argnums=[8, 9, 10, 11, 12])
+@partial(jit, static_argnums=[8, 9, 10, 11, 12,13])
 def compute_grads(Q_rot, K_rot, V, cos, sin, mask, s_c, dmu, n_heads, d_head, dropout_rate, seq_len, batch_size,use_rope, key):
     """Compute gradients for Q, K, V using d_softmax and attention scores
     """
@@ -139,7 +139,7 @@ class AttentionBlock(JaxComponent):
             raise ValueError(f"With RoPE, d_head={self.d_head} must be even for complex number representation.")
         if self.use_rope:
             # Precompute RoPE
-            cos_rope, sin_rope = precompute_freqs_cis_real(self.d_head, self.seq_len)
+            cos_rope, sin_rope = precompute_freqs_cis_real(self.d_head, self.seq_len, theta= self.rope_theta)
         else:
             cos_rope = jnp.ones((self.seq_len, self.d_head))
             sin_rope = jnp.zeros((self.seq_len, self.d_head))

@@ -16,7 +16,7 @@ class Config:
     tau_o = 2
 
     #configuration of encoding either rope or positional
-    postion_encoding= "rope"
+    position_encoding= "rope"
 
     # Used only when position_encoding == "positional"
     # True: learned absolute embeddings

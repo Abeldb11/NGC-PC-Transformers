@@ -29,7 +29,7 @@ def _create_sinusoidal_embeddings(seq_len, embed_dim):
 @partial(jit, static_argnums=[2, 3, 4, 5])
 def _compute_embedding_updates(inputs, post, vocab_size, seq_len, embed_dim, batch_size):
     """
-    Compute updates for word embeddings and postional embeddings
+    Compute updates for word embeddings and positional embeddings
     """
     
     # Flatten for processing
@@ -42,14 +42,12 @@ def _compute_embedding_updates(inputs, post, vocab_size, seq_len, embed_dim, bat
     d_word_weights = d_word_weights.at[flat_tokens].add(flat_errors)
 
 
-    # postional embededings update
+    # positional embededings update
 
     d_pos_weights = jnp.zeros((seq_len, embed_dim))
     
     batch_positions = jnp.tile(jnp.arange(seq_len), batch_size).astype(jnp.int32)
-    d_pos_weights = jax.lax.cond(
-      lambda: d_pos_weights.at[batch_positions].add(flat_errors), lambda: d_pos_weights
-    )
+    d_pos_weights =  d_pos_weights.at[batch_positions].add(flat_errors)
             
     return d_word_weights, d_pos_weights
 
@@ -168,7 +166,7 @@ class EmbeddingSynapse(JaxComponent):
     @compilable
     def evolve(self):
         """
-        Learning step: Hebbian updates for word embeddings and update postional embeddings only when using learned absolute postional embeddings
+        Learning step: Hebbian updates for word embeddings and update positional embeddings only when using learned absolute positional embeddings
         """
         opt = self.opt.get()
         vocab_size = self.vocab_size.get()
@@ -204,7 +202,7 @@ class EmbeddingSynapse(JaxComponent):
             self.pos_opt_params.set(pos_opt_params)
             self.dPosWeights.set(d_pos_weights)
         else:
-            #fixed sinusoidal postions and RoPE 
+            #fixed sinusoidal positions and RoPE 
             self.dPosWeights.set(jnp.zeros_like(pos_weights))
         
     @compilable
