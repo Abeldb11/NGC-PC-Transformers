@@ -100,14 +100,14 @@ class EmbeddingSynapse(JaxComponent):
         self.weight_scale = weight_scale
         self.optim_type = optim_type
         self.position_encoding = position_encoding
-        self.use_postional = (self.position_encoding == "positional")
+        self.use_positional = (self.position_encoding == "positional")
         self.pos_learnable = pos_learnable
         #separate keys for word and positional embeddings
         word_key =random.PRNGKey(1234)
         pos_key = random.fold_in(word_key,1)
         
         word_weights = random.normal(word_key, (vocab_size, embed_dim)) * weight_scale
-        if self.use_postional:
+        if self.use_positional:
             if self.pos_learnable:
                 pos_weights = random.normal(pos_key, (seq_len, embed_dim)) * weight_scale
             else:
@@ -130,8 +130,8 @@ class EmbeddingSynapse(JaxComponent):
         self.word_opt_params = Compartment(
             get_opt_init_fn(optim_type)([self.word_weights.get()])
         )
-        #postion optimizer for learned only
-        if(self.use_postional and self.pos_learnable):
+        #position optimizer for learned only
+        if(self.use_positional and self.pos_learnable):
             self.pos_opt_params = Compartment(
                 get_opt_init_fn(optim_type)([self.pos_weights.get()])
             )
@@ -152,7 +152,7 @@ class EmbeddingSynapse(JaxComponent):
         word_embeds_flat = word_weights[flat_tokens]
         word_embeds = word_embeds_flat.reshape(batch_size, seq_len, embed_dim)
         
-        if self.use_postional:
+        if self.use_positional:
             pos_weights = self.pos_weights.get()
             positions = jnp.arange(seq_len)
             pos_embeds= pos_weights[positions]
@@ -195,7 +195,7 @@ class EmbeddingSynapse(JaxComponent):
         self.word_opt_params.set(word_opt_params)
         self.dWordWeights.set(d_word_weights)
 
-        if (self.use_postional and self.pos_learnable):
+        if (self.use_positional and self.pos_learnable):
             pos_opt_params = self.pos_opt_params.get()
             pos_opt_params, [new_pos_weights] = opt(
                 pos_opt_params, [pos_weights], [d_pos_weights]
