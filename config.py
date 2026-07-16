@@ -17,12 +17,14 @@ class Config:
     n_iter= 26
     tau_o = 2
     # Approximate Xavier scaling: 1 / sqrt(512) is about 0.04
-    wub = 0.035284728580901155
-    wlb =  -0.07318664527441558
+    # wub = 0.035284728580901155
+    # wlb =  -0.07318664527441558
     wu = 0.035284728580901155
     wl = -0.035284728580901155
+    wub = 0.15
+    wlb = -0.15
     tau_m = 2.7
-    act_fx = "tanh"
+    act_fx = "identity"
     act_fx_o = "identity"
 
     # Tokenizer selection: "BPE" (custom/BPE loader) or "tiktoken"
