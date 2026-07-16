@@ -228,13 +228,28 @@ class AttentionBlock(JaxComponent):
     def help(cls):
         """Component help function"""
         properties = {
-            "component_type": "AttentionBlock - multi-head self-attention with built-in causal mask"
+            "component_type": "AttentionBlock - multi-head self-attention with built-in causal mask and optional rotary position encoding"
         }
         compartment_props = {
             "inputs": 
                 {"inputs_q": "Query inputs (batch_size, seq_len, n_embed)",
                 "inputs_k": "Key inputs (batch_size, seq_len, n_embed)", 
                 "inputs_v": "Value inputs (batch_size, seq_len, n_embed)"},
+            "states": {
+                "cos": (
+                    "Precomputed RoPE cosine values "
+                    "(seq_len, d_head); identity values are used when "
+                    "position_encoding='positional'"
+                ),
+                "sin": (
+                    "Precomputed RoPE sine values "
+                    "(seq_len, d_head); zero values are used when "
+                    "position_encoding='positional'"
+                ),
+                "key": (
+                    "JAX pseudo-random key used for attention dropout"
+                ),
+            },
             "gradients":
                 {"dq": "Gradient w.r.t Q (batch_size*seq_len, n_embed)",
                 "dk": "Gradient w.r.t K (batch_size*seq_len, n_embed)",
@@ -248,10 +263,21 @@ class AttentionBlock(JaxComponent):
             "n_embed": "Embedding dimension", 
             "seq_len": "Sequence length",
             "dropout_rate": "Attention dropout rate",
-            "batch_size": "Batch size dimension"
+            "batch_size": "Batch size dimension",
+            "position_encoding": (
+                "Position-encoding mode: 'rope' or 'positional'"
+            ),
+            "rope_theta": (
+                "RoPE frequency base; used only when "
+                "position_encoding='rope'"
+            ),
         }
         info = {cls.__name__: properties,
                 "compartments": compartment_props,
-                "dynamics": "outputs = MultiHeadAttention(Q, K, V) with built-in causal mask",
+                "dynamics": (
+                    "rope: outputs = CausalMultiHeadAttention("
+                    "RoPE(Q), RoPE(K), V); "
+                    "positional: outputs = CausalMultiHeadAttention(Q, K, V)"
+                ),
                 "hyperparameters": hyperparams}
         return info
