@@ -6,23 +6,23 @@ class Config:
     vocab_size = 2000# data vocab size + special tokens = 11706 + 4
     n_heads = 8
     n_layers = 2
-    dropout_rate = 0.1
+    dropout_rate = 0.0
     # eta = 4.919042890915579e-06
     eta = 5e-5
     eta_o= 2.9e-03
     exp_dir = "exp" 
     pos_learnable = True
-    optim_type = "adam"
+    optim_type = "sgd"
     epoch = 1
     n_iter= 50
     tau_o = 2
     # Approximate Xavier scaling: 1 / sqrt(512) is about 0.04
-    # wub = 0.035284728580901155
-    # wlb =  -0.07318664527441558
+    wub = 0.035284728580901155
+    wlb =  -0.07318664527441558
     wu = 0.035284728580901155
     wl = -0.035284728580901155
-    wub = 0.15
-    wlb = -0.15
+    #wub = 0.15
+    #wlb = -0.15
     tau_m = 2.7
     act_fx = "identity"
     act_fx_o = "identity"

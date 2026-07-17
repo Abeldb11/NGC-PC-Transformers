@@ -43,8 +43,8 @@ class AdaptivePrecisionErrorCell(JaxComponent):
                   timescales; lower = precision reacts faster but noisier)
     """
 
-    def __init__(self, name, n_units, batch_size=1, sigma_init=1., sigma_min=0.01,
-                 momentum=0.99, shape=None, **kwargs):
+    def __init__(self, name, n_units, batch_size=1, sigma_init=1., sigma_min=0.1,
+                 momentum=0.95, shape=None, **kwargs):
         super().__init__(name, **kwargs)
 
         _shape = (batch_size, n_units)
