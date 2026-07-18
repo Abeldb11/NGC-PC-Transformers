@@ -1,4 +1,4 @@
-print("act function restored, now testing a larger learning rate 1e-4")
+print("just")
 class Config:
     SEED = 42
     seq_len =64
