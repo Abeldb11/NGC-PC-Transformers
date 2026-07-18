@@ -1,3 +1,4 @@
+print("act function restored, now testing a larger learning rate 1e-4")
 class Config:
     SEED = 42
     seq_len =64
@@ -8,7 +9,7 @@ class Config:
     n_layers = 2
     dropout_rate = 0.0
     # eta = 4.919042890915579e-06
-    eta = 5e-5
+    eta = 1e-04
     eta_o= 2.9e-03
     exp_dir = "exp" 
     pos_learnable = True
@@ -24,10 +25,9 @@ class Config:
     #wub = 0.15
     #wlb = -0.15
     tau_m = 2.7
-    #act_fx = "identity"
-    #act_fx_o = "identity"
-    act_fx = "tanh"
-    act_fx_o = "tanh"
+    act_fx = "identity"
+    act_fx_o = "identity"
+
 
     # Tokenizer selection: "BPE" (custom/BPE loader) or "tiktoken"
     tokenizer = "BPE"
