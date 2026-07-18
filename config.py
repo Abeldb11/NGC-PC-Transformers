@@ -13,7 +13,7 @@ class Config:
     exp_dir = "exp" 
     pos_learnable = True
     optim_type = "sgd"
-    epoch = 5
+    epoch = 1
     n_iter= 50
     tau_o = 2
     # Approximate Xavier scaling: 1 / sqrt(512) is about 0.04
@@ -24,8 +24,10 @@ class Config:
     #wub = 0.15
     #wlb = -0.15
     tau_m = 2.7
-    act_fx = "identity"
-    act_fx_o = "identity"
+    #act_fx = "identity"
+    #act_fx_o = "identity"
+    act_fx = "tanh"
+    act_fx_o = "tanh"
 
     # Tokenizer selection: "BPE" (custom/BPE loader) or "tiktoken"
     tokenizer = "BPE"
