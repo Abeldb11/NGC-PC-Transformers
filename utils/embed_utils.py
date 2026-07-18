@@ -46,7 +46,7 @@ def _compute_embedding_updates(inputs, post, word_weights, pos_weights,
     pos_learnable, lambda: d_pos_weights.at[jnp.tile(jnp.arange(seq_len), batch_size)].add(flat_errors), lambda: d_pos_weights
     )
             
-    return d_word_weights, d_pos_weights
+    return -d_word_weights, -d_pos_weights
 
 class EmbeddingSynapse(JaxComponent):
     """
