@@ -53,17 +53,20 @@ def _compute_embedding_updates(inputs, post, vocab_size, seq_len, embed_dim, bat
 
 class EmbeddingSynapse(JaxComponent):
     """
-    A synaptic cable that handles word embeddings.
+    A synaptic cable that handles word and positional embeddings.
 
     | --- Synapse Compartments: ---
     | inputs - input token indices (takes in external signals)
     | outputs - output embedding signals (only word embeddings)
     | word_weights - word embedding matrix
+    | pos_weights - position embedding matrix  
     | post - post-synaptic signals for learning (takes in external signals)
     | key - JAX PRNG key
     | --- Synaptic Plasticity Compartments: ---
     | dWordWeights - current delta matrix for word embedding changes
+    | dPosWeights - current delta matrix for position embedding changes
     | word_opt_params - optimizer statistics for word embeddings
+    | pos_opt_params - optimizer statistics for position embeddings
 
     Args:
         name: the string name of this component
@@ -80,12 +83,16 @@ class EmbeddingSynapse(JaxComponent):
 
         optim_type: optimization scheme (Default: "sgd")
 
+        pos_learnable: whether position embeddings are learnable or fixed
+
+        position_encoding: type of position encoding (Default: "rope")
+
         weight_scale: scaling factor for weight initialization (Default: 0.02)
     """
 
     def __init__(
             self, name, vocab_size, seq_len, embed_dim, batch_size,
-            eta, optim_type,position_encoding="rope", pos_learnable=True, weight_scale=0.02,
+            eta, optim_type,position_encoding="rope", pos_learnable=False, weight_scale=0.02,
             **kwargs
     ):
         super().__init__(name, **kwargs)
@@ -138,7 +145,7 @@ class EmbeddingSynapse(JaxComponent):
     @compilable
     def advance_state(self):
         """
-        Forward pass: output = word_embedding[inputs]
+        Forward pass: output = word_embedding[inputs] + position_embedding[positions]
         """
         inputs=self.inputs.get()
         word_weights=self.word_weights.get()
@@ -156,11 +163,11 @@ class EmbeddingSynapse(JaxComponent):
             pos_embeds= pos_weights[positions]
             pos_embeds_batch = jnp.broadcast_to(pos_embeds, (batch_size, seq_len, embed_dim))
 
-            outputs = (word_embeds +pos_embeds_batch)
+            combined_embeddings = word_embeds + pos_embeds_batch
         else:
             #RoPE mode
-            outputs = word_embeds
-        self.outputs.set(outputs)
+            combined_embeddings = word_embeds
+        self.outputs.set(combined_embeddings)
 
   
     @compilable
@@ -225,6 +232,7 @@ class EmbeddingSynapse(JaxComponent):
         post = jnp.zeros((batch_size, seq_len, embed_dim))
         dWordWeights = jnp.zeros((vocab_size, embed_dim))
         dPosWeights = jnp.zeros((seq_len, embed_dim))
+        # return inputs, outputs, post, dWordWeights, dPosWeights
         self.inputs.set(inputs)
         self.outputs.set(outputs)
         self.post.set(post)
