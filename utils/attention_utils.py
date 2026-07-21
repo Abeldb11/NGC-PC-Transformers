@@ -78,7 +78,7 @@ def compute_grads(Q_rot, K_rot, V, cos, sin, mask, s_c, dmu, n_heads, d_head, dr
     dQ_rot = jnp.einsum("bhqk,bhkd->bhqd", ds, K_rot)  # (B, H, S, D)
     dK_rot = jnp.einsum("bhkq,bhqd->bhkd", ds, Q_rot)  # (B, H, S, D)
     
-    # Inverse RoPE to get raw Q and K gradients
+    # Inverse RoPE to get raw Q and K gradients if use_rope = true
     if use_rope:
         dQ_raw, dK_raw = apply_rotary_emb_inv(dQ_rot, dK_rot, cos, sin)
     else:
@@ -116,6 +116,9 @@ class AttentionBlock(JaxComponent):
         seq_len: Sequence length
         dropout_rate: Attention dropout rate
         batch_size: Batch size
+        position_encoding: "rope" or "positional"
+        rope_theta: RoPE frequency base (used only when position_encoding="rope")
+        
     """
     
     def __init__(self, name, n_heads, n_embed, seq_len, dropout_rate, batch_size, position_encoding="rope", rope_theta=10000.0, **kwargs):

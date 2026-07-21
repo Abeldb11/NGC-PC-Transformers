@@ -46,7 +46,7 @@ class NGCTransformer:
     """
 
    
-    def __init__(self, dkey, batch_size, seq_len, n_embed, vocab_size, n_layers, n_heads, T, dt, tau_m, act_fx, eta, dropout_rate, exp_dir, model_name, loadDir=None,position_encoding="rope",pos_learnable=True,rope_theta=10000.0, optim_type="adam", wub=1.0, wlb=0.0, **kwargs):
+    def __init__(self, dkey, batch_size, seq_len, n_embed, vocab_size, n_layers, n_heads, T, dt, tau_m, act_fx, eta, dropout_rate, exp_dir, model_name, loadDir=None,position_encoding="rope",pos_learnable=False,rope_theta=10000.0, optim_type="adam", wub=1.0, wlb=0.0, **kwargs):
 
         self.exp_dir = exp_dir
         self.model_name = model_name
