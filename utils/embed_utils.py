@@ -26,8 +26,8 @@ def _create_sinusoidal_embeddings(seq_len, embed_dim):
     embeddings = embeddings.at[:, 1::2].set(jnp.cos(angles))
     return embeddings
 
-@partial(jit, static_argnums=[2, 3, 4, 5])
-def _compute_embedding_updates(inputs, post, vocab_size, seq_len, embed_dim, batch_size):
+@partial(jit, static_argnums=[2, 3, 4, 5, 6])
+def _compute_embedding_updates(inputs, post, vocab_size, seq_len, embed_dim, batch_size,pos_learnable):
     """
     Compute updates for word embeddings and positional embeddings
     """
@@ -47,7 +47,7 @@ def _compute_embedding_updates(inputs, post, vocab_size, seq_len, embed_dim, bat
     d_pos_weights = jnp.zeros((seq_len, embed_dim))
     
     batch_positions = jnp.tile(jnp.arange(seq_len), batch_size).astype(jnp.int32)
-    d_pos_weights =  d_pos_weights.at[batch_positions].add(flat_errors)
+    d_pos_weights =  jax.lax.cond(pos_learnable, lambda: d_pos_weights.at[batch_positions].add(flat_errors), lambda: d_pos_weights)
             
     return d_word_weights, d_pos_weights
 
@@ -100,9 +100,9 @@ class EmbeddingSynapse(JaxComponent):
         self.position_encoding = position_encoding
         self.use_positional = (self.position_encoding == "positional")
         self.pos_learnable = pos_learnable
-        #separate keys for word and positional embeddings
-        word_key =random.PRNGKey(1234)
-        pos_key = random.fold_in(word_key,1)
+        
+        key = random.PRNGKey(1234)
+        word_key, pos_key = random.split(key, 2)
         
         word_weights = random.normal(word_key, (vocab_size, embed_dim)) * weight_scale
         if self.use_positional:
@@ -178,11 +178,12 @@ class EmbeddingSynapse(JaxComponent):
         word_weights = self.word_weights.get()
         pos_weights = self.pos_weights.get()
         word_opt_params = self.word_opt_params.get()
+        pos_opt_params = self.pos_opt_params.get()
         
         # Compute embedding updates
         inputs= inputs.astype(jnp.int32)
         (d_word_weights, d_pos_weights)  = _compute_embedding_updates(
-            inputs, post, vocab_size, seq_len, embed_dim, batch_size
+            inputs, post, vocab_size, seq_len, embed_dim, batch_size, self.pos_learnable
         )
         
         word_opt_params, [new_word_weights] = opt(
@@ -193,13 +194,17 @@ class EmbeddingSynapse(JaxComponent):
         self.word_opt_params.set(word_opt_params)
         self.dWordWeights.set(d_word_weights)
 
+        new_pos_weights = pos_weights
+        new_pos_opt_params = pos_opt_params
+
         if (self.use_positional and self.pos_learnable):
-            pos_opt_params = self.pos_opt_params.get()
+            
             pos_opt_params, [new_pos_weights] = opt(
                 pos_opt_params, [pos_weights], [d_pos_weights]
             )
+            new_pos_opt_params = pos_opt_params
             self.pos_weights.set(new_pos_weights)
-            self.pos_opt_params.set(pos_opt_params)
+            self.pos_opt_params.set(new_pos_opt_params)
             self.dPosWeights.set(d_pos_weights)
         else:
             #fixed sinusoidal positions and RoPE 

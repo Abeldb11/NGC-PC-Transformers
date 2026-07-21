@@ -21,7 +21,7 @@ class Config:
     # Used only when position_encoding == "positional"
     # True: learned absolute embeddings
     # False: fixed sinusoidal embeddings
-    pos_learnable = True
+    pos_learnable = False 
 
     rope_theta = 10000.0
 
