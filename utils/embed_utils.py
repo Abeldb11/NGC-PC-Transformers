@@ -20,10 +20,10 @@ def _create_sinusoidal_embeddings(seq_len, embed_dim):
     position = jnp.arange(seq_len)[:, None]
     div_term = jnp.exp(jnp.arange(0, embed_dim, 2) * 
                       (-jnp.log(10000.0) / embed_dim))
-    angles = position * div_term
+    
     embeddings = jnp.zeros((seq_len, embed_dim))
-    embeddings = embeddings.at[:, 0::2].set(jnp.sin(angles))
-    embeddings = embeddings.at[:, 1::2].set(jnp.cos(angles))
+    embeddings = embeddings.at[:, 0::2].set(jnp.sin(position * div_term))
+    embeddings = embeddings.at[:, 1::2].set(jnp.cos(position * div_term))
     return embeddings
 
 @partial(jit, static_argnums=[2, 3, 4, 5, 6])

@@ -9,7 +9,7 @@ class Config:
     dropout_rate = 0.0
     eta = 4.919042890915579e-06
     eta_o= 2.9e-03
-    exp_dir = "exp_rope" # either "exp_rope" or "exp_positional_learned" -r "exp_positional_fixed"
+    exp_dir = "exp_rope" # either "exp_rope" or "exp_positional_learned" or "exp_positional_fixed"
     optim_type = "sgd"
     epoch = 1
     n_iter= 26

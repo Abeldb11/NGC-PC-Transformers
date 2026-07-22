@@ -11,7 +11,7 @@ from utils.rope_utils import apply_rotary_emb, apply_rotary_emb_inv, precompute_
 @partial(jit, static_argnums=[6, 7, 8, 9, 10,11])
 def _compute_attention(Q, K, V, cos, sin, mask, n_heads, d_head, dropout_rate, seq_len, batch_size, use_rope,  key):
     """
-    Compute multi-head attention with RoPE
+    Compute multi-head attention 
     """
     B = batch_size
     S = seq_len
