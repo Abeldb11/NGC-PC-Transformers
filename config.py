@@ -47,3 +47,4 @@ class Config:
 
     
     precision_sites = None 
+    use_positional_encoding = True

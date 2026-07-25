@@ -37,6 +37,7 @@ class EMBEDDING:
                 batch_size=batch_size,
                 pos_learnable=pos_learnable,
                 eta=eta,
+                use_positional_encoding=getattr(config, "use_positional_encoding", True),
                 optim_type=optim_type,
                 key=subkeys[0])
             
