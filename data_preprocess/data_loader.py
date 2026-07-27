@@ -3,6 +3,7 @@ from pathlib import Path
 from ngclearn.utils.data_loader import DataLoader as NGCDataLoader
 import sys
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 DIR = Path(__file__).parent
 sys.path.append(str(DIR.parent))
 
@@ -15,9 +16,9 @@ class DataLoader:
 
     def load_and_prepare_data(self):
         """Load tokenized data and prepare for training"""
-        train_tokens = jnp.load(self.data_dir / "train_tokens.npy")
-        valid_tokens = jnp.load(self.data_dir / "valid_tokens.npy")
-        test_tokens = jnp.load(self.data_dir / "test_tokens.npy")
+        train_tokens = np.load(self.data_dir / "train_tokens.npy")
+        valid_tokens = np.load(self.data_dir / "valid_tokens.npy")
+        test_tokens = np.load(self.data_dir / "test_tokens.npy")
 
         train_loader = self._create_data_loader(train_tokens, shuffle=True)
         valid_loader = self._create_data_loader(valid_tokens, shuffle=False)
@@ -27,33 +28,33 @@ class DataLoader:
 
     def _create_data_loader(self, tokens, shuffle):
         """Create sequences and return NGC DataLoader"""
+        tokens = np.asarray(tokens)
         window_size = self.seq_len + 1
         stride = self.seq_len
         n_tokens = len(tokens)
         num_sequences = (n_tokens - window_size) // stride + 1
 
         if num_sequences <= 0:
-            padded_tokens = jnp.concatenate([
+            padded_tokens = np.concatenate([
                 tokens,
-                jnp.full((window_size - len(tokens),), self.pad_token)
+                np.full((window_size - len(tokens),), self.pad_token)
             ])
             sequences = padded_tokens.reshape(1, -1)
         else:
-            indices = np.arange(num_sequences) * stride
-            sequences = np.array([tokens[i:i + window_size] for i in indices])
-
+            # Vectorized windowing instead of a Python loop over millions of slices
+            windows = sliding_window_view(tokens, window_size)[::stride]
+            sequences = np.array(windows[:num_sequences])
 
         inputs = sequences[:, :-1]
         targets = sequences[:, 1:]
-        
-        mask = (targets != self.pad_token).astype(jnp.float32)
-        
-                
+
+        mask = (targets != self.pad_token).astype(np.float32)
+
         return NGCDataLoader(
             design_matrices=[
-                ("inputs", inputs), 
-                ("targets", targets),
-                ("mask", mask)
+                ("inputs", jnp.array(inputs)),
+                ("targets", jnp.array(targets)),
+                ("mask", jnp.array(mask))
             ],
             batch_size=self.batch_size,
             disable_shuffle=not shuffle,
