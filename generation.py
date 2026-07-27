@@ -88,7 +88,7 @@ def generate_text(
         # Forward pass
 
         y_mu_inf, y_mu, _ = model.process(input_seq, dummy_target, adapt_synapses=False)
-        logits = y_mu.reshape(config.batch_size, config.seq_len, config.vocab_size)
+        logits = y_mu_inf.reshape(config.batch_size, config.seq_len, config.vocab_size)
 
         # Get logits for the last *real* token (excluding padding)
         if current_tokens.shape[1] > config.seq_len:
