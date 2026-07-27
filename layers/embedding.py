@@ -29,7 +29,7 @@ class EMBEDDING:
                 w_bound=1.,
                 is_nonnegative=False,
                 prior=("constant", 0.),
-                weight_init=dist.fan_in_gaussian(),
+                weight_init=dist.constant(value=0.0),  # Initialize weights to zero
                 key=subkeys[0])
             
         self.e_embed = ErrorCell("e_embed", n_units=embed_dim, 

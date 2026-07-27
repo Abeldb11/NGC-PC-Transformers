@@ -133,19 +133,18 @@ class EmbeddingSynapse(JaxComponent):
             default], ("l2"/"ridge", lmbda), ("l1"/"lasso", lmbda),
             ("l1l2"/"elastic_net", (scale, l1_ratio))
 
-        weight_init: a kernel (shape, key) -> array used to sample
-            word_weights/pos_weights; if None (default), falls back to the
-            existing random.normal(...) * weight_scale initialization.
-            Note: for a (vocab_size, embed_dim) shape, kernels such as
-            ngclearn's dist.fan_in_gaussian() treat fan_in = vocab_size,
-            not embed_dim, since fan_in is always read from shape[0].
+       weight_init: initialization kernel (shape, key) -> array used to
+            initialize word_weights and learnable pos_weights.
+            Default follows initialization strategy as:
+            dist.constant(value=0.0).
+            Random initialization can be supplied if desired.
     """
 
     def __init__(
             self, name, vocab_size, seq_len, embed_dim, batch_size,
             pos_learnable, eta, optim_type, weight_scale=0.02, sign_value=-1.,
             w_bound=1., is_nonnegative=False, prior=("constant", 0.),
-            weight_init=dist.fan_in_gaussian(),
+            weight_init=dist.constant(value=0.0),
             **kwargs
     ):
         super().__init__(name, **kwargs)
