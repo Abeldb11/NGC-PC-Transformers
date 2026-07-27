@@ -58,8 +58,9 @@ class BPETokenizer:
             special_tokens=["<pad>", "<unk>", "<bos>", "<eos>"],
             min_frequency=2
         )
-        lines = all_text.splitlines()
+        lines = [line for line in all_text.splitlines() if line.strip()]
         self.tokenizer.train_from_iterator(lines, trainer=trainer, length=len(lines))
+
 
         # self.tokenizer.train_from_iterator([all_text], trainer=trainer)
 
@@ -72,11 +73,19 @@ class BPETokenizer:
             raise FileNotFoundError(f"Tokenizer file not found: {path}")
         self.tokenizer = Tokenizer.from_file(str(path))
 
+
+
     def encode(self, text: str) -> jnp.ndarray:
         if self.tokenizer is None:
             raise ValueError("Tokenizer not trained/loaded.")
-        encoded = self.tokenizer.encode(text)
-        return jnp.array(encoded.ids, dtype=jnp.int32)
+        lines = [line for line in text.splitlines() if line.strip()]
+        if not lines:
+            return jnp.array([], dtype=jnp.int32)
+        encoded_batch = self.tokenizer.encode_batch(lines)
+        ids = []
+        for enc in encoded_batch:
+            ids.extend(enc.ids)
+        return jnp.array(ids, dtype=jnp.int32)
 
     def decode(self, tokens: jnp.ndarray) -> str:
         if self.tokenizer is None:
