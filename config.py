@@ -9,11 +9,22 @@ class Config:
     dropout_rate = 0.0
     eta = 4.919042890915579e-06
     eta_o= 2.9e-03
-    exp_dir = "exp" 
+    exp_dir = "exp_rope" # either "exp_rope" or "exp_positional_learned" or "exp_positional_fixed"
     optim_type = "sgd"
     epoch = 1
     n_iter= 26
     tau_o = 2
+
+    #configuration of encoding either rope or positional
+    position_encoding= "rope"
+
+    # Used only when position_encoding == "positional"
+    # True: learned absolute embeddings
+    # False: fixed sinusoidal embeddings
+    pos_learnable = False 
+
+    rope_theta = 10000.0
+
     # Approximate Xavier scaling: 1 / sqrt(512) is about 0.04
     wub = 0.035284728580901155
     wlb =  -0.07318664527441558

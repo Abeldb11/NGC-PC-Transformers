@@ -11,7 +11,7 @@ from utils.model_util import ReshapeComponent
 
 class ProjBlock:
     def __init__(self, dkey, block_id, n_embed, seq_len, vocab_size,
-                 batch_size, n_heads, dropout_rate, eta, optim_type, wub, wlb, **kwargs):
+                 batch_size, n_heads, dropout_rate, eta, optim_type, wub, wlb,position_encoding, rope_theta, **kwargs):
         
         dkey, *subkeys = random.split(dkey, 20)
         prefix = f"block_proj{block_id}_"
@@ -36,7 +36,7 @@ class ProjBlock:
         self.q_attn_block = AttentionBlock(f"{prefix}q_attn_block",
 
                                    n_heads=n_heads, n_embed=n_embed, seq_len=seq_len,
-                                   dropout_rate=dropout_rate, batch_size=batch_size)
+                                   dropout_rate=dropout_rate, batch_size=batch_size, position_encoding=position_encoding, rope_theta=rope_theta)
                 
         
         self.Q_attn_out = StaticSynapse(f"{prefix}Q_attn_out", shape=(n_embed, n_embed),
