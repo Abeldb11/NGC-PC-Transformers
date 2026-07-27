@@ -2,7 +2,7 @@ class Config:
     SEED = 42
     seq_len =64
     n_embed = 96
-    batch_size = 12
+    batch_size = 8
     vocab_size = 24000# data vocab size + special tokens = 11706 + 4
     n_heads = 8
     n_layers = 4
