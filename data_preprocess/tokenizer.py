@@ -81,11 +81,20 @@ class BPETokenizer:
         lines = [line for line in text.splitlines() if line.strip()]
         if not lines:
             return jnp.array([], dtype=jnp.int32)
-        encoded_batch = self.tokenizer.encode_batch(lines)
-        ids = []
-        for enc in encoded_batch:
-            ids.extend(enc.ids)
-        return jnp.array(ids, dtype=jnp.int32)
+
+        print(f"Encoding {len(lines)} lines...")
+        chunk_size = 20000
+        arrays = []
+        iterator = range(0, len(lines), chunk_size)
+        if tqdm is not None:
+            iterator = tqdm(iterator, desc="Encoding chunks", unit="chunk")
+        for i in iterator:
+            batch = lines[i:i + chunk_size]
+            encoded_batch = self.tokenizer.encode_batch(batch)
+            for enc in encoded_batch:
+                arrays.append(np.array(enc.ids, dtype=np.int32))
+        result = np.concatenate(arrays) if arrays else np.array([], dtype=np.int32)
+        return jnp.array(result)
 
     def decode(self, tokens: jnp.ndarray) -> str:
         if self.tokenizer is None:
