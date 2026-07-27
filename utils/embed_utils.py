@@ -134,17 +134,15 @@ class EmbeddingSynapse(JaxComponent):
             ("l1l2"/"elastic_net", (scale, l1_ratio))
 
        weight_init: initialization kernel (shape, key) -> array used to
-            initialize word_weights and learnable pos_weights.
-            Default follows initialization strategy as:
-            dist.constant(value=0.0).
-            Random initialization can be supplied if desired.
+                    initialize word_weights and learnable pos_weights.
+                    If None, embeddings are initialized to zeros.
     """
 
     def __init__(
             self, name, vocab_size, seq_len, embed_dim, batch_size,
             pos_learnable, eta, optim_type, weight_scale=0.02, sign_value=-1.,
             w_bound=1., is_nonnegative=False, prior=("constant", 0.),
-            weight_init=dist.constant(value=0.0),
+            weight_init=None,
             **kwargs
     ):
         super().__init__(name, **kwargs)
