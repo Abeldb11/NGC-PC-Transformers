@@ -24,7 +24,7 @@ class Config:
     act_fx = "identity"
     act_fx_o = "identity"
 
-    # Tokenizer selection: "BPE" (custom/BPE loader) or "tiktoken"
+    # Tokenizer selection: "BPE" (custom/BPE loader) or "tiktoken" , or "character"
     tokenizer = "BPE"
     # When tokenizer == "tiktoken", tokenizer_name is used (e.g. "gpt2" or "cl100k_base")
     tokenizer_name = "gpt2"
@@ -32,6 +32,8 @@ class Config:
     # When tokenizer == "BPE", tokenizer_vocab_file may point to a vocab json or a newline token list.
     # Optional: set to None to use a simple fallback whitespace tokenizer.
     tokenizer_vocab_file = None
-
+    # Optional saved character vocabulary. When None, get_tokenizer() checks the
+    # default data_preprocess/outputs/tokenizer/character_tokenizer.json path.
+    character_tokenizer_vocab_file = None
     # set True to Use jax.lax.scan fused advance loop (faster, minor floating-point differences from the normal python loop)
     fused_advance = True
