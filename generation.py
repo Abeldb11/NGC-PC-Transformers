@@ -29,7 +29,7 @@ import jax.numpy as jnp
 import numpy as np
 from config import Config as config
 from data_preprocess.data_loader import DataLoader
-from data_preprocess.tokenizer import get_tokenizer, BPETokenizer
+from data_preprocess.tokenizer import get_tokenizer, BPETokenizer, CharacterTokenizer
 from pathlib import Path
 import re
 import textwrap
@@ -55,6 +55,8 @@ def generate_text(
     if pad_token_id is None:
         if isinstance(tokenizer, BPETokenizer) and tokenizer.tokenizer is not None:
             pad_token_id = tokenizer.tokenizer.token_to_id("<pad>")
+        elif isinstance(tokenizer, CharacterTokenizer):
+            pad_token_id = tokenizer.pad_token_id
         elif hasattr(tokenizer, "_enc") and hasattr(tokenizer._enc, "eot_token"):
             pad_token_id = tokenizer._enc.eot_token
         else:
@@ -63,6 +65,8 @@ def generate_text(
     start_token_id = None
     if isinstance(tokenizer, BPETokenizer) and tokenizer.tokenizer is not None:
         start_token_id = tokenizer.tokenizer.token_to_id("<bos>")
+    elif isinstance(tokenizer, CharacterTokenizer):
+         start_token_id = tokenizer.bos_token_id
     if start_token_id is None:
         start_token_id = pad_token_id
 
