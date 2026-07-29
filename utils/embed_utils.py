@@ -6,7 +6,6 @@ from ngclearn.components.jaxComponent import JaxComponent
 from ngclearn import Compartment
 from ngclearn import compilable
 from ngclearn.utils import tensorstats
-from ngclearn.utils.distribution_generator import DistributionGenerator as dist
 import os
 from pathlib import Path
 
@@ -22,12 +21,9 @@ def _create_sinusoidal_embeddings(seq_len, embed_dim):
     embeddings = embeddings.at[:, 1::2].set(jnp.cos(position * div_term))
     return embeddings
 
-
-
 @partial(jit, static_argnums=[4, 5, 6, 7])
 def _compute_embedding_updates(inputs, post, word_weights, pos_weights, 
-                              vocab_size, seq_len, embed_dim, batch_size, pos_learnable,
-                            ):
+                              vocab_size, seq_len, embed_dim, batch_size, pos_learnable):
     """
     Compute updates for word and position embeddings
     """
@@ -47,12 +43,8 @@ def _compute_embedding_updates(inputs, post, word_weights, pos_weights,
     d_pos_weights = jax.lax.cond(
     pos_learnable, lambda: d_pos_weights.at[batch_positions].add(flat_errors), lambda: d_pos_weights
     )
-
-    # Add regularization/prior term
             
     return d_word_weights, d_pos_weights
-
-
 
 class EmbeddingSynapse(JaxComponent):
     """
@@ -90,21 +82,6 @@ class EmbeddingSynapse(JaxComponent):
         optim_type: optimization scheme (Default: "sgd")
 
         weight_scale: scaling factor for weight initialization (Default: 0.02)
-
-        w_bound: maximum absolute value to hard-clip word_weights/pos_weights
-            to after each evolve() step; <= 0 disables clipping (Default: 0.)
-
-        is_nonnegative: if True and w_bound > 0, clip to [0, w_bound] instead
-            of [-w_bound, w_bound] (Default: False)
-
-        prior: regularization prior applied to both word_weights and
-            pos_weights; tuple of (name, lambda): ("constant", 0.) [off,
-            default], ("l2"/"ridge", lmbda), ("l1"/"lasso", lmbda),
-            ("l1l2"/"elastic_net", (scale, l1_ratio))
-
-       weight_init: initialization kernel (shape, key) -> array used to
-                    initialize word_weights and learnable pos_weights.
-                    If None, embeddings are initialized to zeros.
     """
 
     def __init__(
@@ -124,22 +101,16 @@ class EmbeddingSynapse(JaxComponent):
         self.optim_type = optim_type
         self.sign_value = sign_value
 
-        # Regularization/bounding configuration
-
         key =random.PRNGKey(1234)
         word_key, pos_key = random.split(key, 2)
         
-        # Fallback initialization: zeros, since scatter-add updates break
-        # symmetry per-token/position without needing random initialization
-        key =random.PRNGKey(1234)
-        word_key, pos_key = random.split(key, 2)
-                
         word_weights = random.normal(word_key, (self.vocab_size, self.embed_dim)) * weight_scale
-                
+        
         if pos_learnable:
             pos_weights = random.normal(pos_key, (self.seq_len, self.embed_dim)) * weight_scale
         else:
             pos_weights = _create_sinusoidal_embeddings(self.seq_len, self.embed_dim)
+
         ## Compartments
         self.inputs = Compartment(jnp.zeros((self.batch_size, self.seq_len), dtype=jnp.int32))
         self.outputs = Compartment(jnp.zeros((self.batch_size, self.seq_len, self.embed_dim)))
@@ -186,48 +157,48 @@ class EmbeddingSynapse(JaxComponent):
   
     @compilable
     def evolve(self):
-            """
-            Learning step: Hebbian updates for both word and position embeddings
-            """
-            opt = self.opt.get()
-            # pos_learnable = self.pos_learnable.get()
-            inputs = self.inputs.get()
-            post = self.post.get()
-            word_weights = self.word_weights.get()
-            pos_weights = self.pos_weights.get()
-            word_opt_params = self.word_opt_params.get()
-            pos_opt_params = self.pos_opt_params.get()
-            batch_size = inputs.shape[0]
-            # Compute embedding updates
-            inputs= inputs.astype(jnp.int32)
-            d_word_weights, d_pos_weights = _compute_embedding_updates(
-                inputs, post, word_weights, pos_weights, self.vocab_size, self.seq_len,
-                self.embed_dim, batch_size, self.pos_learnable
+        """
+        Learning step: Hebbian updates for both word and position embeddings
+        """
+        opt = self.opt.get()
+        # pos_learnable = self.pos_learnable.get()
+        inputs = self.inputs.get()
+        post = self.post.get()
+        word_weights = self.word_weights.get()
+        pos_weights = self.pos_weights.get()
+        word_opt_params = self.word_opt_params.get()
+        pos_opt_params = self.pos_opt_params.get()
+        batch_size = inputs.shape[0]
+        # Compute embedding updates
+        inputs= inputs.astype(jnp.int32)
+        d_word_weights, d_pos_weights = _compute_embedding_updates(
+            inputs, post, word_weights, pos_weights, self.vocab_size, self.seq_len,
+            self.embed_dim, batch_size, self.pos_learnable
+        )
+
+        d_word_weights = d_word_weights * self.sign_value
+        d_pos_weights = d_pos_weights * self.sign_value
+
+        word_opt_params, [new_word_weights] = opt(
+            word_opt_params, [word_weights], [d_word_weights]
+        )
+        
+        new_pos_weights = pos_weights
+        new_pos_opt_params = pos_opt_params
+        
+        if self.pos_learnable:
+            pos_opt_params, [new_pos_weights] = opt(
+                pos_opt_params, [pos_weights], [d_pos_weights]
             )
-    
-            d_word_weights = d_word_weights * self.sign_value
-            d_pos_weights = d_pos_weights * self.sign_value
-    
-            word_opt_params, [new_word_weights] = opt(
-                word_opt_params, [word_weights], [d_word_weights]
-            )
-            
-            new_pos_weights = pos_weights
             new_pos_opt_params = pos_opt_params
-            
-            if self.pos_learnable:
-                pos_opt_params, [new_pos_weights] = opt(
-                    pos_opt_params, [pos_weights], [d_pos_weights]
-                )
-                new_pos_opt_params = pos_opt_params
-            
-            # return new_word_weights, new_pos_weights, d_word_weights, d_pos_weights, word_opt_params, new_pos_opt_params
-            self.word_weights.set(new_word_weights)
-            self.pos_weights.set(new_pos_weights)
-            self.dWordWeights.set(d_word_weights)
-            self.dPosWeights.set(d_pos_weights)
-            self.word_opt_params.set(word_opt_params)
-            self.pos_opt_params.set(new_pos_opt_params)
+        
+        # return new_word_weights, new_pos_weights, d_word_weights, d_pos_weights, word_opt_params, new_pos_opt_params
+        self.word_weights.set(new_word_weights)
+        self.pos_weights.set(new_pos_weights)
+        self.dWordWeights.set(d_word_weights)
+        self.dPosWeights.set(d_pos_weights)
+        self.word_opt_params.set(word_opt_params)
+        self.pos_opt_params.set(new_pos_opt_params)
     @compilable
     def reset(self):
         """
