@@ -1,3 +1,4 @@
+print('weight initializtion')
 class Config:
     SEED = 42
     seq_len =32
