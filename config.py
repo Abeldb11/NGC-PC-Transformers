@@ -3,7 +3,7 @@ class Config:
     seq_len =32
     n_embed = 128
     batch_size = 8
-    vocab_size = 11711# data vocab size + special tokens = 11706 + 4
+    vocab_size = 32000# data vocab size + special tokens = 11706 + 4
     n_heads = 8
     n_layers = 4
     dropout_rate = 0.1
