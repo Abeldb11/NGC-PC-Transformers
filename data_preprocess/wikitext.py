@@ -4,7 +4,7 @@ from pathlib import Path
 OUT_DIR = Path(__file__).parent / "data"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-ds = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1")
+ds = load_dataset("Salesforce/wikitext", "wikitext-103-raw-v1")
 
 # HF's split names -> the filenames this repo expects
 split_map = {"train": "train.txt", "validation": "valid.txt", "test": "test.txt"}
