@@ -1,4 +1,4 @@
-print('atten step')
+print('embed step')
 class Config:
     SEED = 42
     seq_len =32
