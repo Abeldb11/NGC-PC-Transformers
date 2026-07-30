@@ -593,7 +593,7 @@ class NGCTransformer:
 
         # ══════  Learning  ═════════════════════════════════════════
         EFE = 0.            ## expected free energy
-        y_mu = jnp.zeros((self.batch_size * self.seq_len, self.vocab_size))  ## settled prediction
+        y_mu =0  ## settled prediction
         if adapt_synapses:
             ## ════════════════════════════════
             ## Perform several E-steps
