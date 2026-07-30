@@ -536,37 +536,37 @@ class NGCTransformer:
         self.reset.run()
 
         ## ════════════════════════════════════════════════════════════════════════════════
-        #self.projection.Q_embed.word_weights.set(self.embedding.W_embed.word_weights.get())
-        #if self.embedding.W_embed.pos_learnable:
-         #  self.projection.Q_embed.pos_weights.set(self.embedding.W_embed.pos_weights.get())
+        self.projection.Q_embed.word_weights.set(self.embedding.W_embed.word_weights.get())
+        if self.embedding.W_embed.pos_learnable:
+           self.projection.Q_embed.pos_weights.set(self.embedding.W_embed.pos_weights.get())
         ## --------------------------------------------------------------
-        #for i in range(self.n_layers):
-         #   block= self.blocks[i]
-          #  block_proj= self.projection.blocks[i]
+        for i in range(self.n_layers):
+            block= self.blocks[i]
+            block_proj= self.projection.blocks[i]
 
-           # block_proj.Q_q.weights.set(block.attention.W_q.weights.get())
-            #block_proj.Q_q.biases.set(block.attention.W_q.biases.get())
-            #block_proj.Q_k.weights.set(block.attention.W_k.weights.get())
-            #block_proj.Q_k.biases.set(block.attention.W_k.biases.get())
-            #block_proj.Q_v.weights.set(block.attention.W_v.weights.get())
-            #block_proj.Q_v.biases.set(block.attention.W_v.biases.get())
+            block_proj.Q_q.weights.set(block.attention.W_q.weights.get())
+            block_proj.Q_q.biases.set(block.attention.W_q.biases.get())
+            block_proj.Q_k.weights.set(block.attention.W_k.weights.get())
+            block_proj.Q_k.biases.set(block.attention.W_k.biases.get())
+            block_proj.Q_v.weights.set(block.attention.W_v.weights.get())
+            block_proj.Q_v.biases.set(block.attention.W_v.biases.get())
 
-            #block_proj.Q_attn_out.weights.set(block.attention.W_attn_out.weights.get())
-            #block_proj.Q_attn_out.biases.set(block.attention.W_attn_out.biases.get())
+            block_proj.Q_attn_out.weights.set(block.attention.W_attn_out.weights.get())
+            block_proj.Q_attn_out.biases.set(block.attention.W_attn_out.biases.get())
 
-            #block_proj.Q_mlp1.weights.set(block.mlp.W_mlp1.weights.get())
-            #block_proj.Q_mlp1.biases.set(block.mlp.W_mlp1.biases.get())
-            #block_proj.Q_mlp2.weights.set(block.mlp.W_mlp2.weights.get())
-            #block_proj.Q_mlp2.biases.set(block.mlp.W_mlp2.biases.get())
+            block_proj.Q_mlp1.weights.set(block.mlp.W_mlp1.weights.get())
+            block_proj.Q_mlp1.biases.set(block.mlp.W_mlp1.biases.get())
+            block_proj.Q_mlp2.weights.set(block.mlp.W_mlp2.weights.get())
+            block_proj.Q_mlp2.biases.set(block.mlp.W_mlp2.biases.get())
 
-        #self.projection.Q_out.weights.set(self.output.W_out.weights.get())
-        #self.projection.Q_out.biases.set(self.output.W_out.biases.get())
-        # self.projection.q_target_Ratecell.j_td.set(jnp.zeros((self.batch_size * self.seq_len, self.vocab_size)))
+        self.projection.Q_out.weights.set(self.output.W_out.weights.get())
+        self.projection.Q_out.biases.set(self.output.W_out.biases.get())
+        self.projection.q_target_Ratecell.j_td.set(jnp.zeros((self.batch_size * self.seq_len, self.vocab_size)))
 
         ## ════════════════════════════════════════════════════════════════════════════════
         self.clamp_input(obs)
-        #self.clamp_infer_target(lab)
-        #self.project.run(t=0., dt=1.)
+        self.clamp_infer_target(lab)
+        self.project.run(t=0., dt=1.)
 
         ## get projected prediction (from the P-step)
         y_mu_inf = self.projection.q_target_Ratecell.zF.get()
