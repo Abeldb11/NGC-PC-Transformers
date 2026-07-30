@@ -24,7 +24,7 @@ def _create_sinusoidal_embeddings(seq_len, embed_dim):
 
 
 
-@partial(jit, static_argnums=[4, 5, 6, 7, 9])
+@partial(jit, static_argnums=[4, 5, 6, 7])
 def _compute_embedding_updates(inputs, post, word_weights, pos_weights, 
                               vocab_size, seq_len, embed_dim, batch_size, pos_learnable,
                               ):
