@@ -301,7 +301,7 @@ class NGCTransformer:
                     advance_process >> block.reshape_2d_to_3d_v.advance_state
                     advance_process >> block.attention.attn_block.advance_state
                     advance_process >> block.reshape_3d_to_2d.advance_state
-                    advance_process >> block.attention.e_qkv.advance_state
+                    # advance_process >> block.attention.e_qkv.advance_state
                     advance_process >> block.attention.e_attn.advance_state
                     advance_process >> block.attention.E_q.advance_state
                     advance_process >> block.attention.E_k.advance_state
@@ -621,7 +621,6 @@ class NGCTransformer:
         for i in range(self.n_layers):
             block = self.blocks[i]
             block_errors += (block.attention.e_attn.L.get() + 
-                                 block.attention.e_qkv.L.get()
                                  + block.mlp.e_mlp.L.get()
                                  + block.mlp.e_mlp1.L.get()
                             )
