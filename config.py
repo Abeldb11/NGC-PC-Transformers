@@ -1,4 +1,4 @@
-print('no step')
+print('nopi step')
 class Config:
     SEED = 42
     seq_len =32

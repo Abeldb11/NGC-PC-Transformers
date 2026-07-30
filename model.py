@@ -573,7 +573,7 @@ class NGCTransformer:
 
         ## ════════════════════════════════════════════════════════════════════════════════
         ## initialize dynamics of generative model latents to projected states
-        self.output.z_out.z.set(self.projection.q_out_Ratecell.z.get())
+        #self.output.z_out.z.set(self.projection.q_out_Ratecell.z.get())
         ## ----------------------------------------
         for i in range(self.n_layers):
             # proj_block = self.projection.blocks[i]
@@ -600,7 +600,7 @@ class NGCTransformer:
 
         # ══════  Learning  ═════════════════════════════════════════
         EFE = 0.            ## expected free energy
-        y_mu = jnp.zeros((self.batch_size * self.seq_len, self.vocab_size))  ## settled prediction
+        y_mu = 0
         if adapt_synapses:
             ## ════════════════════════════════
             ## Perform several E-steps
@@ -620,7 +620,6 @@ class NGCTransformer:
             for i in range(self.n_layers):
                 block = self.blocks[i]
                 block_errors += (block.attention.e_attn.L.get() + 
-                                 block.attention.e_qkv.L.get()
                                  + block.mlp.e_mlp.L.get()
                                  + block.mlp.e_mlp1.L.get()
                                  )
