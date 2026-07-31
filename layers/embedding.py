@@ -26,8 +26,8 @@ class EMBEDDING:
                 pos_learnable=pos_learnable,
                 eta=eta,
                 optim_type=optim_type,
-                w_bound=1.,
-                is_nonnegative=False,
+                decay_rate=0.0, 
+                max_row_norm=None,
                 key=subkeys[0])
             
         self.e_embed = ErrorCell("e_embed", n_units=embed_dim, 
