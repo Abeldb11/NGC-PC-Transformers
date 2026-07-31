@@ -46,6 +46,18 @@ def _compute_embedding_updates(inputs, post, word_weights, pos_weights,
             
     return d_word_weights, d_pos_weights
 
+@partial(jit, static_argnums=[1])
+def _build_touch_mask(flat_tokens, vocab_size):
+    """1.0 for rows updated this batch, 0.0 otherwise."""
+    return jnp.zeros((vocab_size,)).at[flat_tokens].set(1.0)[:, None]
+
+@partial(jit, static_argnums=[1])
+def _clip_row_norms(weights, max_norm):
+    """Hard backstop: no row's L2 norm may exceed max_norm."""
+    norms = jnp.linalg.norm(weights, axis=-1, keepdims=True)
+    scale = jnp.minimum(1.0, max_norm / (norms + 1e-8))
+    return weights * scale
+
 class EmbeddingSynapse(JaxComponent):
     """
     A synaptic cable that handles both word and position embeddings.
@@ -86,7 +98,7 @@ class EmbeddingSynapse(JaxComponent):
 
     def __init__(
             self, name, vocab_size, seq_len, embed_dim, batch_size,
-            pos_learnable, eta, optim_type, weight_scale=0.02, sign_value=-1.,
+            pos_learnable, eta, optim_type, weight_scale=0.02, sign_value=-1., decay_rate=0.0, max_row_norm=None,
             **kwargs
     ):
         super().__init__(name, **kwargs)
@@ -100,6 +112,8 @@ class EmbeddingSynapse(JaxComponent):
         self.weight_scale = weight_scale
         self.optim_type = optim_type
         self.sign_value = sign_value
+        self.decay_rate = decay_rate
+        self.max_row_norm = max_row_norm
 
         key =random.PRNGKey(1234)
         word_key, pos_key = random.split(key, 2)
@@ -182,6 +196,13 @@ class EmbeddingSynapse(JaxComponent):
         word_opt_params, [new_word_weights] = opt(
             word_opt_params, [word_weights], [d_word_weights]
         )
+        if self.decay_rate > 0.:
+            flat_tokens = inputs.reshape(-1).astype(jnp.int32)
+            touch_mask = _build_touch_mask(flat_tokens, self.vocab_size)
+            new_word_weights = new_word_weights * (1. - self.decay_rate * touch_mask)
+
+        if self.max_row_norm is not None:
+            new_word_weights = _clip_row_norms(new_word_weights, self.max_row_norm)
         
         new_pos_weights = pos_weights
         new_pos_opt_params = pos_opt_params
