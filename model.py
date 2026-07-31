@@ -1,4 +1,3 @@
-#import
 import jax
 from ngclearn import Context, MethodProcess
 from ngclearn.utils.io_utils import makedir
@@ -59,7 +58,6 @@ class NGCTransformer:
         self.seq_len= seq_len
         self.vocab_size= vocab_size
         self.n_embed= n_embed
-        self.generate = generate
         
         if exp_dir is not None:
             makedir(exp_dir)
@@ -127,12 +125,10 @@ class NGCTransformer:
                     block.reshape_2d_to_3d_v.outputs >> block.attention.attn_block.inputs_v
                     block.attention.attn_block.outputs >> block.reshape_3d_to_2d.inputs
 
-                    # block.reshape_3d_to_2d.outputs >> block.attention.e_qkv.mu
-                    # block.attention.z_attn.z >> block.attention.e_qkv.target
+                    block.reshape_3d_to_2d.outputs >> block.attention.e_qkv.mu
+                    block.attention.z_attn.z >> block.attention.e_qkv.target
                     
-                    # block.attention.z_attn.zF >> block.attention.W_attn_out.inputs
-                    block.reshape_3d_to_2d.outputs >> block.attention.W_attn_out.inputs
-
+                    block.attention.z_attn.zF >>block.attention.W_attn_out.inputs 
                     block.attention.W_attn_out.outputs >> block.attention.e_attn.mu
                     block.mlp.z_mlp.z >> block.attention.e_attn.target
 
@@ -160,25 +156,25 @@ class NGCTransformer:
                     block.mlp.e_mlp1.dmu >> block.mlp.E_mlp1.inputs
                     block.mlp.e_mlp.dmu  >> block.mlp.E_mlp.inputs
 
-                    # block.attention.e_qkv.dmu >> block.attention.attn_block.dmu
-                    block.attention.e_attn.dmu >> block.attention.E_attn.inputs
-                    block.attention.E_attn.outputs >> block.attention.attn_block.dmu
+                    block.attention.e_qkv.dmu >> block.attention.attn_block.dmu
+                    
                     block.attention.attn_block.dq >> block.attention.E_q.inputs
                     block.attention.attn_block.dk >> block.attention.E_k.inputs
                     block.attention.attn_block.dv >> block.attention.E_v.inputs
+                    block.attention.e_attn.dmu >> block.attention.E_attn.inputs
                     
                     
                     block.attention.E_q.outputs >>block.attention.z_qkv.jq
                     block.attention.E_k.outputs >>block.attention.z_qkv.jk
                     block.attention.E_v.outputs >> block.attention.z_qkv.jv
-                    # block.attention.E_attn.outputs >> block.attention.z_attn.j
+                    block.attention.E_attn.outputs >> block.attention.z_attn.j
 
 
                     if blocks == 0:
                         self.embedding.e_embed.dtarget >> block.attention.z_qkv.j_td
                     else:
                         self.blocks[blocks - 1].mlp.e_mlp.dtarget >> block.attention.z_qkv.j_td
-                    # block.attention.e_qkv.dtarget >> block.attention.z_attn.j_td
+                    block.attention.e_qkv.dtarget >> block.attention.z_attn.j_td
 
                     block.mlp.E_mlp.outputs  >> block.mlp.z_mlp2.j
                     block.mlp.E_mlp1.outputs >> block.mlp.z_mlp.j
@@ -196,7 +192,7 @@ class NGCTransformer:
                     block.attention.z_qkv.zF >> block.attention.W_v.pre
                     block.attention.attn_block.dv >> block.attention.W_v.post
 
-                    block.reshape_3d_to_2d.outputs >> block.attention.W_attn_out.pre
+                    block.attention.z_attn.zF >> block.attention.W_attn_out.pre
                     block.attention.e_attn.dmu >> block.attention.W_attn_out.post
 
 
@@ -210,15 +206,14 @@ class NGCTransformer:
                 self.output.z_out.zF >> self.output.W_out.inputs
                 self.output.W_out.outputs >> self.z_actfx.j
                 self.output.W_out.outputs >> self.Outgrad.mu
-                self.z_actfx.zF >> self.output.e_out.mu
-                self.z_target.z >> self.output.e_out.target
-                if generate ==True:
-                    self.Outgrad.final >> self.z_target.j
+                if generate == False:
+                    self.z_actfx.zF >> self.output.e_out.mu
+                    self.z_target.z >> self.output.e_out.target
 
-                self.output.e_out.dmu >> self.output.E_out.inputs
-                self.output.e_out.dmu >> self.output.W_out.post
+                    self.output.e_out.dmu >> self.output.E_out.inputs
+                    self.output.e_out.dmu >> self.output.W_out.post
 
-                self.output.E_out.outputs >> self.output.z_out.j
+                    self.output.E_out.outputs >> self.output.z_out.j
                 self.blocks[self.n_layers - 1].mlp.e_mlp.dtarget >> self.output.z_out.j_td
 
 
@@ -256,8 +251,8 @@ class NGCTransformer:
                     ##  ... >> q_mlp_Ratecell >> Q_mlp1 >> q_mlp2_Ratecell >> Q_mlp2
                     ## ===============================================================================
                     block_proj.q_attn_block.outputs >> block_proj.reshape_3d_to_2d_proj1.inputs
-                    block_proj.reshape_3d_to_2d_proj1.outputs >> block_proj.Q_attn_out.inputs#block_proj.q_attn_Ratecell.j
-                    # block_proj.q_attn_Ratecell.zF >> block_proj.Q_attn_out.inputs
+                    block_proj.reshape_3d_to_2d_proj1.outputs >> block_proj.q_attn_Ratecell.j
+                    block_proj.q_attn_Ratecell.zF >> block_proj.Q_attn_out.inputs
                     block_proj.Q_attn_out.outputs >> block_proj.q_mlp_Ratecell.j
                     block_proj.q_mlp_Ratecell.zF >> block_proj.Q_mlp1.inputs
                     block_proj.Q_mlp1.outputs >> block_proj.q_mlp2_Ratecell.j
@@ -301,14 +296,14 @@ class NGCTransformer:
                     advance_process >> block.reshape_2d_to_3d_v.advance_state
                     advance_process >> block.attention.attn_block.advance_state
                     advance_process >> block.reshape_3d_to_2d.advance_state
-                    # advance_process >> block.attention.e_qkv.advance_state
+                    advance_process >> block.attention.e_qkv.advance_state
                     advance_process >> block.attention.e_attn.advance_state
                     advance_process >> block.attention.E_q.advance_state
                     advance_process >> block.attention.E_k.advance_state
                     advance_process >> block.attention.E_v.advance_state
 
 
-                    # advance_process >> block.attention.z_attn.advance_state
+                    advance_process >> block.attention.z_attn.advance_state
                     advance_process >> block.attention.W_attn_out.advance_state
                     advance_process >> block.attention.E_attn.advance_state
                     
@@ -395,7 +390,7 @@ class NGCTransformer:
                     ## ===============================================================================
                     project_process >> block_proj.q_attn_block.advance_state
                     project_process >> block_proj.reshape_3d_to_2d_proj1.advance_state
-                    # project_process >> block_proj.q_attn_Ratecell.advance_state
+                    project_process >> block_proj.q_attn_Ratecell.advance_state
                     project_process >> block_proj.Q_attn_out.advance_state
                     project_process >> block_proj.q_mlp_Ratecell.advance_state
                     project_process >> block_proj.Q_mlp1.advance_state
@@ -524,7 +519,7 @@ class NGCTransformer:
 
             # --- Map Projection Block ---
             block_proj.q_qkv_Ratecell.z.set(  self.circuit.get_components(f"{p_prefix}_q_qkv_Ratecell").z.get())
-            # block_proj.q_attn_Ratecell.z.set(  self.circuit.get_components(f"{p_prefix}_q_attn_Ratecell").z.get())
+            block_proj.q_attn_Ratecell.z.set(  self.circuit.get_components(f"{p_prefix}_q_attn_Ratecell").z.get())
             block_proj.q_mlp_Ratecell.z.set(  self.circuit.get_components(f"{p_prefix}_q_mlp_Ratecell").z.get())
             block_proj.q_mlp2_Ratecell.z.set(  self.circuit.get_components(f"{p_prefix}_q_mlp2_Ratecell").z.get())
             block_proj.reshape_3d_to_2d_proj1.inputs.set(self.circuit.get_components(f"{p_prefix}_reshape_3d_to_2d_proj1").inputs.get())
@@ -534,108 +529,91 @@ class NGCTransformer:
           
 
     def process(self, obs, lab, adapt_synapses=True):
-
-        # ══════  Inference  ════════════════════════════════════════
-        #####     Reset
+        
         self.reset.run()
+        # self.projection.Q_embed.word_weights.set(self.embedding.W_embed.word_weights.get())
+        # if self.embedding.W_embed.pos_learnable:
+        #    self.projection.Q_embed.pos_weights.set(self.embedding.W_embed.pos_weights.get())
+        # for i in range(self.n_layers):
+        #     block_proj= self.projection.blocks[i]
+        #     block= self.blocks[i] 
+        #     block_proj.Q_q.weights.set(block.attention.W_q.weights.get())
+        #     block_proj.Q_q.biases.set(block.attention.W_q.biases.get())
+        #     block_proj.Q_k.weights.set(block.attention.W_k.weights.get())
+        #     block_proj.Q_k.biases.set(block.attention.W_k.biases.get())
+        #     block_proj.Q_v.weights.set(block.attention.W_v.weights.get())
+        #     block_proj.Q_v.biases.set(block.attention.W_v.biases.get())
+        #     block_proj.Q_attn_out.weights.set(block.attention.W_attn_out.weights.get())
+        #     # block_proj.q_attn_block.inputs_q.set(block.attention.attn_block.inputs_q.get())
+        #     # block_proj.q_attn_block.inputs_k.set(block.attention.attn_block.inputs_k.get())
+        #     # block_proj.q_attn_block.inputs_v.set(block.attention.attn_block.inputs_v.get())
+        #     block_proj.Q_attn_out.biases.set(block.attention.W_attn_out.biases.get())
+        #     block_proj.Q_mlp1.weights.set(block.mlp.W_mlp1.weights.get())
+        #     block_proj.Q_mlp1.biases.set(block.mlp.W_mlp1.biases.get())
+        #     block_proj.Q_mlp2.weights.set(block.mlp.W_mlp2.weights.get())
+        #     block_proj.Q_mlp2.biases.set(block.mlp.W_mlp2.biases.get())
 
-        ## ════════════════════════════════════════════════════════════════════════════════
-        self.projection.Q_embed.word_weights.set(self.embedding.W_embed.word_weights.get())
-        if self.embedding.W_embed.pos_learnable:
-           self.projection.Q_embed.pos_weights.set(self.embedding.W_embed.pos_weights.get())
-        ## --------------------------------------------------------------
-        for i in range(self.n_layers):
-            block= self.blocks[i]
-            block_proj= self.projection.blocks[i]
-
-            block_proj.Q_q.weights.set(block.attention.W_q.weights.get())
-            block_proj.Q_q.biases.set(block.attention.W_q.biases.get())
-            block_proj.Q_k.weights.set(block.attention.W_k.weights.get())
-            block_proj.Q_k.biases.set(block.attention.W_k.biases.get())
-            block_proj.Q_v.weights.set(block.attention.W_v.weights.get())
-            block_proj.Q_v.biases.set(block.attention.W_v.biases.get())
-
-            block_proj.Q_attn_out.weights.set(block.attention.W_attn_out.weights.get())
-            block_proj.Q_attn_out.biases.set(block.attention.W_attn_out.biases.get())
-
-            block_proj.Q_mlp1.weights.set(block.mlp.W_mlp1.weights.get())
-            block_proj.Q_mlp1.biases.set(block.mlp.W_mlp1.biases.get())
-            block_proj.Q_mlp2.weights.set(block.mlp.W_mlp2.weights.get())
-            block_proj.Q_mlp2.biases.set(block.mlp.W_mlp2.biases.get())
-
-        self.projection.Q_out.weights.set(self.output.W_out.weights.get())
-        self.projection.Q_out.biases.set(self.output.W_out.biases.get())
+        # self.projection.Q_out.weights.set(self.output.W_out.weights.get())
+        # self.projection.Q_out.biases.set(self.output.W_out.biases.get())
         # self.projection.q_target_Ratecell.j_td.set(jnp.zeros((self.batch_size * self.seq_len, self.vocab_size)))
-
-        ## ════════════════════════════════════════════════════════════════════════════════
+        
+       
         self.clamp_input(obs)
-        self.clamp_infer_target(lab)
-        self.project.run(t=0., dt=1.)
+        # self.clamp_infer_target(lab)
+        
+        # self.project.run(t=0., dt=1.)
 
+
+        for i in range(self.n_layers):
+        #     block_proj= self.projection.blocks[i]   
+            b= self.blocks[i]
+        #     b.attention.z_qkv.z.set(block_proj.q_qkv_Ratecell.z.get())
+        #     b.mlp.z_mlp.z.set(block_proj.q_mlp_Ratecell.z.get())
+        #     b.mlp.z_mlp2.z.set(block_proj.q_mlp2_Ratecell.z.get())
+            b.attention.E_q.weights.set(jnp.transpose(b.attention.W_q.weights.get()))
+            b.attention.E_k.weights.set(jnp.transpose(b.attention.W_k.weights.get()))
+            b.attention.E_v.weights.set(jnp.transpose(b.attention.W_v.weights.get()))
+            b.attention.E_attn.weights.set(jnp.transpose(b.attention.W_attn_out.weights.get()))
+            b.mlp.E_mlp.weights.set(jnp.transpose(b.mlp.W_mlp2.weights.get()))  
+            b.mlp.E_mlp1.weights.set(jnp.transpose(b.mlp.W_mlp1.weights.get()))
+       
+        self.output.E_out.weights.set(jnp.transpose(self.output.W_out.weights.get()))
+        # self.output.z_out.z.set(self.projection.q_out_Ratecell.z.get())
+        # self.output.e_out.dmu.set(self.projection.eq_target.dmu.get())
+        # self.output.e_out.dtarget.set(self.projection.eq_target.dtarget.get())
+        
+        
         ## get projected prediction (from the P-step)
         y_mu_inf = self.projection.q_target_Ratecell.zF.get()
-
-        ## ════════════════════════════════════════════════════════════════════════════════
-        ## initialize dynamics of generative model latents to projected states
-        self.output.z_out.z.set(self.projection.q_out_Ratecell.z.get())
-        ## ----------------------------------------
-        for i in range(self.n_layers):
-            proj_block = self.projection.blocks[i]
-            block = self.blocks[i]
-            ## ------------------------------------
-            block.attention.z_qkv.z.set(proj_block.q_qkv_Ratecell.z.get())
-            # block.attention.z_attn.z.set(proj_block.q_attn_Ratecell.z.get())
-            block.mlp.z_mlp.z.set(proj_block.q_mlp_Ratecell.z.get())
-            block.mlp.z_mlp2.z.set(proj_block.q_mlp2_Ratecell.z.get())
-            ## ------------------------------------
-            # block.attention.attn_block.inputs_q.set(proj_block.q_attn_block.inputs_q.get())
-            # block.attention.attn_block.inputs_k.set(proj_block.q_attn_block.inputs_k.get())
-            # block.attention.attn_block.inputs_v.set(proj_block.q_attn_block.inputs_v.get())
-        ## --------------------------------------------------------------------------------
-        self.output.e_out.dmu.set(self.projection.eq_target.dmu.get())
-        self.output.e_out.dtarget.set(self.projection.eq_target.dtarget.get())
-
-        # ══════  Learning  ═════════════════════════════════════════
-        EFE = 0.            ## expected free energy
-        y_mu = jnp.zeros((self.batch_size * self.seq_len, self.vocab_size))  ## settled prediction
-        # if adapt_synapses:
-            ## ════════════════════════════════
-            ## Perform several E-steps
+    
+        EFE = 0. 
+        y_mu = 0.
+        #if adapt_synapses:
         for ts in range(0, self.T):
+        
             self.clamp_input(obs)
-            if self.generate ==True:
-                self.clamp_target(y_mu_inf)
-            else:
-                self.clamp_target(lab)
+            self.clamp_target(lab)
+             
+            self.advance.run(t=ts,dt=1.)
+           
+        y_mu = self.z_actfx.zF.get() 
 
-            self.advance.run(t=ts, dt=1.)
-
-            ## ════════════════════════════════
-            ## get settled prediction
-        y_mu = self.z_actfx.zF.get()
-
-            ## calculate approximate EFE
         L1 = self.embedding.e_embed.L.get()
         L4 = self.output.e_out.L.get()
+        
         block_errors = 0.
         for i in range(self.n_layers):
-            block = self.blocks[i]
-            block_errors += (block.attention.e_attn.L.get() + 
-                                 + block.mlp.e_mlp.L.get()
-                                 + block.mlp.e_mlp1.L.get()
-                            )
+                block = self.blocks[i]
+                block_errors += block.attention.e_attn.L.get() + block.mlp.e_mlp.L.get() + block.mlp.e_mlp1.L.get()
 
-        EFE = L1 + block_errors + L4
+        EFE = block_errors + L1
 
-            ## ════════════════════════════════
-            ## Perform M-step
         if adapt_synapses == True:
-            self.embedding_evolve.run()
-            self.evolve.run(t=self.T, dt=1.)
-
-        ##################################################
+                self.embedding_evolve.run()
+                self.evolve.run(t=self.T,dt=1.)
+                
         ## skip E/M steps if just doing test-time inference
-        return y_mu_inf, y_mu, EFE
+        return y_mu_inf, y_mu, EFE 
 
     def count_parameters(self):
         """Count total number of learnable parameters in the model."""
@@ -658,4 +636,3 @@ class NGCTransformer:
 
     def get_latents(self):
         return self.projection.q_out_Ratecell.z.get()
-  

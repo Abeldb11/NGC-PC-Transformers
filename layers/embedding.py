@@ -28,8 +28,6 @@ class EMBEDDING:
                 optim_type=optim_type,
                 w_bound=1.,
                 is_nonnegative=False,
-                prior=("constant", 0.),
-                weight_init=dist.fan_in_gaussian(),
                 key=subkeys[0])
             
         self.e_embed = ErrorCell("e_embed", n_units=embed_dim, 
