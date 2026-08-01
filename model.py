@@ -565,11 +565,11 @@ class NGCTransformer:
 
 
         for i in range(self.n_layers):
-        #     block_proj= self.projection.blocks[i]   
+            block_proj= self.projection.blocks[i]   
             b= self.blocks[i]
-        #     b.attention.z_qkv.z.set(block_proj.q_qkv_Ratecell.z.get())
-        #     b.mlp.z_mlp.z.set(block_proj.q_mlp_Ratecell.z.get())
-        #     b.mlp.z_mlp2.z.set(block_proj.q_mlp2_Ratecell.z.get())
+            b.attention.z_qkv.z.set(block_proj.q_qkv_Ratecell.z.get())
+            b.mlp.z_mlp.z.set(block_proj.q_mlp_Ratecell.z.get())
+            b.mlp.z_mlp2.z.set(block_proj.q_mlp2_Ratecell.z.get())
             b.attention.E_q.weights.set(jnp.transpose(b.attention.W_q.weights.get()))
             b.attention.E_k.weights.set(jnp.transpose(b.attention.W_k.weights.get()))
             b.attention.E_v.weights.set(jnp.transpose(b.attention.W_v.weights.get()))
