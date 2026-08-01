@@ -564,19 +564,31 @@ class NGCTransformer:
         self.project.run(t=0., dt=1.)
 
 
+        alpha = 0.1  # how much influence the projection gets -- start small
+
         for i in range(self.n_layers):
-            block_proj= self.projection.blocks[i]   
+            block_proj= self.projection.blocks[i]
             b= self.blocks[i]
-            b.attention.z_qkv.z.set(block_proj.q_qkv_Ratecell.z.get())
-            b.mlp.z_mlp.z.set(block_proj.q_mlp_Ratecell.z.get())
-            b.mlp.z_mlp2.z.set(block_proj.q_mlp2_Ratecell.z.get())
+
+            current_qkv = b.attention.z_qkv.z.get()
+            projected_qkv = block_proj.q_qkv_Ratecell.z.get()
+            b.attention.z_qkv.z.set((1. - alpha) * current_qkv + alpha * projected_qkv)
+
+            current_mlp = b.mlp.z_mlp.z.get()
+            projected_mlp = block_proj.q_mlp_Ratecell.z.get()
+            b.mlp.z_mlp.z.set((1. - alpha) * current_mlp + alpha * projected_mlp)
+
+            current_mlp2 = b.mlp.z_mlp2.z.get()
+            projected_mlp2 = block_proj.q_mlp2_Ratecell.z.get()
+            b.mlp.z_mlp2.z.set((1. - alpha) * current_mlp2 + alpha * projected_mlp2)
+
             b.attention.E_q.weights.set(jnp.transpose(b.attention.W_q.weights.get()))
             b.attention.E_k.weights.set(jnp.transpose(b.attention.W_k.weights.get()))
             b.attention.E_v.weights.set(jnp.transpose(b.attention.W_v.weights.get()))
             b.attention.E_attn.weights.set(jnp.transpose(b.attention.W_attn_out.weights.get()))
-            b.mlp.E_mlp.weights.set(jnp.transpose(b.mlp.W_mlp2.weights.get()))  
+            b.mlp.E_mlp.weights.set(jnp.transpose(b.mlp.W_mlp2.weights.get()))
             b.mlp.E_mlp1.weights.set(jnp.transpose(b.mlp.W_mlp1.weights.get()))
-       
+
         self.output.E_out.weights.set(jnp.transpose(self.output.W_out.weights.get()))
         # self.output.z_out.z.set(self.projection.q_out_Ratecell.z.get())
         # self.output.e_out.dmu.set(self.projection.eq_target.dmu.get())
