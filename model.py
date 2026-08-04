@@ -592,8 +592,23 @@ class NGCTransformer:
             # block.attention.attn_block.inputs_k.set(proj_block.q_attn_block.inputs_k.get())
             # block.attention.attn_block.inputs_v.set(proj_block.q_attn_block.inputs_v.get())
         ## --------------------------------------------------------------------------------
-        self.output.e_out.dmu.set(self.projection.eq_target.dmu.get())
-        self.output.e_out.dtarget.set(self.projection.eq_target.dtarget.get())
+        # self.output.e_out.dmu.set(self.projection.eq_target.dmu.get())
+        # self.output.e_out.dtarget.set(self.projection.eq_target.dtarget.get())
+        for i in range(self.n_layers):
+        #     block_proj= self.projection.blocks[i]   
+            b= self.blocks[i]
+        #     b.attention.z_qkv.z.set(block_proj.q_qkv_Ratecell.z.get())
+        #     b.mlp.z_mlp.z.set(block_proj.q_mlp_Ratecell.z.get())
+        #     b.mlp.z_mlp2.z.set(block_proj.q_mlp2_Ratecell.z.get())
+            b.attention.E_q.weights.set(jnp.transpose(b.attention.W_q.weights.get()))
+            b.attention.E_k.weights.set(jnp.transpose(b.attention.W_k.weights.get()))
+            b.attention.E_v.weights.set(jnp.transpose(b.attention.W_v.weights.get()))
+            b.attention.E_attn.weights.set(jnp.transpose(b.attention.W_attn_out.weights.get()))
+            b.mlp.E_mlp.weights.set(jnp.transpose(b.mlp.W_mlp2.weights.get()))  
+            b.mlp.E_mlp1.weights.set(jnp.transpose(b.mlp.W_mlp1.weights.get()))
+
+        self.output.E_out.weights.set(jnp.transpose(self.output.W_out.weights.get()))
+        # 
 
         # ══════  Learning  ═════════════════════════════════════════
         EFE = 0.            ## expected free energy
