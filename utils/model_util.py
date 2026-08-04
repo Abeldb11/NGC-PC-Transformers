@@ -110,3 +110,4 @@ class Outgrad(JaxComponent):
         self.mu.set(zeros)
         self.dmu.set(zeros)
         self.dmu_.set(zeros)
+        self.final.set(zeros)
