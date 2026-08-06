@@ -565,21 +565,25 @@ class NGCTransformer:
 
 
         alpha = 0.1  # how much influence the projection gets -- start small
+        z_clip = 5.0
 
         for i in range(self.n_layers):
             block_proj= self.projection.blocks[i]
             b= self.blocks[i]
 
             current_qkv = b.attention.z_qkv.z.get()
-            projected_qkv = block_proj.q_qkv_Ratecell.z.get()
+            projected_qkv = jnp.clip(block_proj.q_qkv_Ratecell.z.get(), -z_clip, z_clip)
+            # projected_qkv = block_proj.q_qkv_Ratecell.z.get()
             b.attention.z_qkv.z.set((1. - alpha) * current_qkv + alpha * projected_qkv)
 
             current_mlp = b.mlp.z_mlp.z.get()
-            projected_mlp = block_proj.q_mlp_Ratecell.z.get()
+            projected_mlp = jnp.clip(block_proj.q_mlp_Ratecell.z.get(), -z_clip, z_clip)
+            # projected_mlp = block_proj.q_mlp_Ratecell.z.get()
             b.mlp.z_mlp.z.set((1. - alpha) * current_mlp + alpha * projected_mlp)
 
             current_mlp2 = b.mlp.z_mlp2.z.get()
-            projected_mlp2 = block_proj.q_mlp2_Ratecell.z.get()
+            projected_mlp2 = jnp.clip(block_proj.q_mlp2_Ratecell.z.get(), -z_clip, z_clip)
+            # projected_mlp2 = block_proj.q_mlp2_Ratecell.z.get()
             b.mlp.z_mlp2.z.set((1. - alpha) * current_mlp2 + alpha * projected_mlp2)
 
             b.attention.E_q.weights.set(jnp.transpose(b.attention.W_q.weights.get()))
