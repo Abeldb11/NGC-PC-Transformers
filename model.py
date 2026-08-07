@@ -565,7 +565,7 @@ class NGCTransformer:
 
 
         alpha = 0.1  # how much influence the projection gets -- start small
-        z_clip = 5.0
+        z_clip = 1.0
 
         for i in range(self.n_layers):
             block_proj= self.projection.blocks[i]
