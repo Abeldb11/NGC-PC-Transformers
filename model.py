@@ -571,18 +571,18 @@ class NGCTransformer:
             block_proj= self.projection.blocks[i]
             b= self.blocks[i]
 
+
             current_qkv = b.attention.z_qkv.z.get()
-            projected_qkv = jnp.clip(block_proj.q_qkv_Ratecell.z.get(), -z_clip, z_clip)
-            # projected_qkv = block_proj.q_qkv_Ratecell.z.get()
+            projected_qkv = block_proj.q_qkv_Ratecell.zF.get()   # .zF, not .z -- structurally bounded to (-1, 1)
             b.attention.z_qkv.z.set((1. - alpha) * current_qkv + alpha * projected_qkv)
 
             current_mlp = b.mlp.z_mlp.z.get()
-            projected_mlp = jnp.clip(block_proj.q_mlp_Ratecell.z.get(), -z_clip, z_clip)
+            projected_mlp = block_proj.q_mlp_Ratecell.zF.get()
             # projected_mlp = block_proj.q_mlp_Ratecell.z.get()
             b.mlp.z_mlp.z.set((1. - alpha) * current_mlp + alpha * projected_mlp)
 
             current_mlp2 = b.mlp.z_mlp2.z.get()
-            projected_mlp2 = jnp.clip(block_proj.q_mlp2_Ratecell.z.get(), -z_clip, z_clip)
+            projected_mlp2 = block_proj.q_mlp2_Ratecell.zF.get()
             # projected_mlp2 = block_proj.q_mlp2_Ratecell.z.get()
             b.mlp.z_mlp2.z.set((1. - alpha) * current_mlp2 + alpha * projected_mlp2)
 
