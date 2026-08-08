@@ -1,12 +1,12 @@
 class Config:
     SEED = 42
-    seq_len =32
-    n_embed = 128
+    seq_len =8
+    n_embed = 64
     batch_size = 8
     vocab_size = 11711# data vocab size + special tokens = 11706 + 4
     n_heads = 8
     n_layers = 4
-    dropout_rate = 0.1
+    dropout_rate = 0.0
     eta = 4.919042890915579e-06
     eta_o= 4.919042890915579e-03
     exp_dir = "exp" 
