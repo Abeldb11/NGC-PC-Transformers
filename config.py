@@ -21,8 +21,8 @@ class Config:
     wu = 0.035284728580901155
     wl = -0.035284728580901155
     tau_m = 5
-    act_fx = "identity"
-    act_fx_o = "identity"
+    act_fx = "tanh"
+    act_fx_o = "tanh"
 
     # Tokenizer selection: "BPE" (custom/BPE loader) or "tiktoken"
     tokenizer = "BPE"
