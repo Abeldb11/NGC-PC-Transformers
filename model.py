@@ -595,7 +595,7 @@ class NGCTransformer:
 
         self.output.E_out.weights.set(jnp.transpose(self.output.W_out.weights.get()))
         current_out = self.output.z_out.z.get()
-        projected_out = self.projection.q_out_Ratecell.z.get()
+        projected_out = self.projection.q_out_Ratecell.zF.get()
         self.output.z_out.z.set((1. - alpha) * current_out + alpha * projected_out)
         # self.output.e_out.dmu.set(self.projection.eq_target.dmu.get())
         # self.output.e_out.dtarget.set(self.projection.eq_target.dtarget.get())
