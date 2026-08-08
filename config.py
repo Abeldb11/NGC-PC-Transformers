@@ -5,7 +5,7 @@ class Config:
     batch_size = 8
     vocab_size = 11711# data vocab size + special tokens = 11706 + 4
     n_heads = 8
-    n_layers = 10
+    n_layers = 8
     dropout_rate = 0.0
     eta = 4.919042890915579e-06
     eta_o= 4.919042890915579e-03
@@ -20,7 +20,7 @@ class Config:
     wlb =  -0.07318664527441558
     wu = 0.035284728580901155
     wl = -0.035284728580901155
-    tau_m = 5
+    tau_m = 10
     act_fx = "tanh"
     act_fx_o = "tanh"
 
