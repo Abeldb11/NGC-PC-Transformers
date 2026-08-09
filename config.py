@@ -35,3 +35,6 @@ class Config:
 
     # set True to Use jax.lax.scan fused advance loop (faster, minor floating-point differences from the normal python loop)
     fused_advance = True
+
+    # which data set to choose : "tinyshakespeare", "wikitext2", "wikitext103"
+    dataset = "tinyshakespeare"

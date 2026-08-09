@@ -12,3 +12,4 @@ pandas
 tokenizers==0.20.3
 tiktoken
 optuna
+datasets>=2.19.0

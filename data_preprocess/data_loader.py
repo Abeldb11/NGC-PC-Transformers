@@ -6,8 +6,15 @@ import numpy as np
 DIR = Path(__file__).parent
 sys.path.append(str(DIR.parent))
 
+from config import Config as config
+from data_preprocess.datasets_registry import prepare_dataset
+
+
 class DataLoader:
-    def __init__(self, seq_len, batch_size, data_dir= DIR / "outputs" / "tokenized_data"):
+    def __init__(self, seq_len, batch_size, data_dir=None):
+        if data_dir is None:
+            _, output_dir = prepare_dataset(config.dataset)
+            data_dir = output_dir / "tokenized_data"
         self.data_dir = Path(data_dir)
         self.seq_len = seq_len
         self.batch_size = batch_size
