@@ -3,7 +3,7 @@ class Config:
     seq_len =64
     n_embed = 96
     batch_size = 12
-    vocab_size = 11710# data vocab size + special tokens = 11706 + 4
+    vocab_size = 32000# data vocab size + special tokens = 11706 + 4
     n_heads = 8
     n_layers = 2
     dropout_rate = 0.0
@@ -46,5 +46,5 @@ class Config:
     # set True to Use jax.lax.scan fused advance loop (faster, minor floating-point differences from the normal python loop)
     fused_advance = True
     # "tinyshakespeare", "wikitext2", "wikitext103"
-    dataset = "wikitext2"
+    dataset = "wikitext103"
 
