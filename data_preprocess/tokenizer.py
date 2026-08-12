@@ -76,19 +76,23 @@ class BPETokenizer:
         #encoded = self.tokenizer.encode(text)
         #return jnp.array(encoded.ids, dtype=jnp.int32)
 
-    def encode(self, text: str) -> jnp.ndarray:
-       if self.tokenizer is None:
-            raise ValueError("Tokenizer not trained/loaded.")
-    # Encode in chunks, not as one giant call 
+    
 
-       lines = text.splitlines() or [text]
-       chunk_size = 100_000
-       all_ids = []
-       for i in range(0, len(lines), chunk_size):
-           batch = lines[i:i + chunk_size]
-           for enc in self.tokenizer.encode_batch(batch):
-               all_ids.extend(enc.ids)
-       return jnp.array(all_ids, dtype=jnp.int32)
+    def encode(self, text: str) -> jnp.ndarray:
+        if self.tokenizer is None:
+            raise ValueError("Tokenizer not trained/loaded.")
+        lines = text.splitlines() or [text]
+        chunk_size = 100_000
+        chunks = []
+        for i in range(0, len(lines), chunk_size):
+             batch = lines[i:i + chunk_size]
+             encodings = self.tokenizer.encode_batch(batch)
+             chunk_ids = np.fromiter(
+                (tid for enc in encodings for tid in enc.ids), dtype=np.int32
+             )
+             chunks.append(chunk_ids)
+        full_ids = np.concatenate(chunks) if chunks else np.array([], dtype=np.int32)
+        return jnp.array(full_ids, dtype=jnp.int32)
 
     def decode(self, tokens: jnp.ndarray) -> str:
         if self.tokenizer is None:
