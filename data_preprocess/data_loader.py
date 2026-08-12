@@ -21,9 +21,12 @@ class DataLoader:
 
     def load_and_prepare_data(self):
         """Load tokenized data and prepare for training"""
-        train_tokens = jnp.load(self.data_dir / "train_tokens.npy")
-        valid_tokens = jnp.load(self.data_dir / "valid_tokens.npy")
-        test_tokens = jnp.load(self.data_dir / "test_tokens.npy")
+        #train_tokens = jnp.load(self.data_dir / "train_tokens.npy")
+        #valid_tokens = jnp.load(self.data_dir / "valid_tokens.npy")
+        #test_tokens = jnp.load(self.data_dir / "test_tokens.npy")
+        train_tokens = np.load(self.data_dir / "train_tokens.npy")   # np.load, not jnp.load
+        valid_tokens = np.load(self.data_dir / "valid_tokens.npy")
+        test_tokens  = np.load(self.data_dir / "test_tokens.npy")
 
         train_loader = self._create_data_loader(train_tokens, shuffle=True)
         valid_loader = self._create_data_loader(valid_tokens, shuffle=False)
