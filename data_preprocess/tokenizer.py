@@ -56,8 +56,10 @@ class BPETokenizer:
             special_tokens=["<pad>", "<unk>", "<bos>", "<eos>"],
             min_frequency=2
         )
+        lines = all_text.splitlines() or [all_text]
+        self.tokenizer.train_from_iterator(lines, trainer=trainer, length=len(lines))
 
-        self.tokenizer.train_from_iterator([all_text], trainer=trainer)
+        # self.tokenizer.train_from_iterator([all_text], trainer=trainer)
 
     def load_tokenizer(self, path: str):
         """
