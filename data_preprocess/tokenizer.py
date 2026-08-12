@@ -70,11 +70,25 @@ class BPETokenizer:
             raise FileNotFoundError(f"Tokenizer file not found: {path}")
         self.tokenizer = Tokenizer.from_file(str(path))
 
+    #def encode(self, text: str) -> jnp.ndarray:
+        #if self.tokenizer is None:
+           # raise ValueError("Tokenizer not trained/loaded.")
+        #encoded = self.tokenizer.encode(text)
+        #return jnp.array(encoded.ids, dtype=jnp.int32)
+
     def encode(self, text: str) -> jnp.ndarray:
-        if self.tokenizer is None:
+       if self.tokenizer is None:
             raise ValueError("Tokenizer not trained/loaded.")
-        encoded = self.tokenizer.encode(text)
-        return jnp.array(encoded.ids, dtype=jnp.int32)
+    # Encode in chunks, not as one giant call 
+
+       lines = text.splitlines() or [text]
+       chunk_size = 100_000
+       all_ids = []
+       for i in range(0, len(lines), chunk_size):
+           batch = lines[i:i + chunk_size]
+           for enc in self.tokenizer.encode_batch(batch):
+               all_ids.extend(enc.ids)
+       return jnp.array(all_ids, dtype=jnp.int32)
 
     def decode(self, tokens: jnp.ndarray) -> str:
         if self.tokenizer is None:
