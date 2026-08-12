@@ -14,13 +14,13 @@ class Config:
     optim_type = "sgd"
     epoch = 5
     n_iter= 26
-    tau_o = 5
+    tau_o = 20
     # Approximate Xavier scaling: 1 / sqrt(512) is about 0.04
     wub = 0.035284728580901155
     wlb =  -0.07318664527441558
     wu = 0.035284728580901155
     wl = -0.035284728580901155
-    tau_m = 5
+    tau_m = 20
     act_fx = "identity"
     act_fx_o = "identity"
 
