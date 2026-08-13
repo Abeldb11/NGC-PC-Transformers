@@ -114,13 +114,7 @@ class BPETokenizer:
         np.save(f"{save_dir}/test_tokens.npy", np.array(test_tokens))
 
 class CharacterTokenizer:
-    """
-    Deterministic character-level tokenizer.
-
-    Special tokens occupy IDs 0-3. All characters are sorted before IDs are
-    assigned so that training on the same text always produces the same
-    vocabulary.
-    """
+    """Deterministic character-level tokenizer. """
 
     PAD_TOKEN = "<pad>"
     UNK_TOKEN = "<unk>"
@@ -150,16 +144,10 @@ class CharacterTokenizer:
         return self.char_to_id[self.EOS_TOKEN]
 
     def is_ready(self) -> bool:
-        """Return True after a vocabulary has been trained or loaded."""
         return self._ready
 
     def train_tokenizer(self, text: str):
-        """
-        Build the vocabulary from the unique characters in text.
-
-        Sorting makes token IDs reproducible across runs. Spaces, tabs, and
-        newline characters are retained because they are part of the input.
-        """
+        
         if not isinstance(text, str):
             raise TypeError("CharacterTokenizer training data must be a string.")
 
@@ -172,13 +160,7 @@ class CharacterTokenizer:
         self._ready = True
 
     def encode(self, text: str) -> jnp.ndarray:
-        """
-        Convert every character into one token ID.
-
-        A character absent from the trained vocabulary maps to <unk>.
-        BOS and EOS are not inserted automatically, matching the current BPE
-        tokenizer's encode behavior.
-        """
+        
         if not self._ready:
             raise ValueError("Character tokenizer not trained/loaded.")
         if not isinstance(text, str):
@@ -191,12 +173,7 @@ class CharacterTokenizer:
         return jnp.array(token_ids, dtype=jnp.int32)
 
     def decode(self, tokens, skip_special_tokens: bool = True) -> str:
-        """
-        Convert token IDs back into text.
-
-        Padding, BOS, and EOS are omitted by default. An unknown character is
-        rendered as the visible string "<unk>" instead of being silently lost.
-        """
+        
         if not self._ready:
             raise ValueError("Character tokenizer not trained/loaded.")
         if hasattr(tokens, "tolist"):
@@ -227,7 +204,7 @@ class CharacterTokenizer:
         valid_text: str,
         test_text: str
     ):
-        """Encode all dataset splits without removing whitespace."""
+        
         return (
             self.encode(train_text),
             self.encode(valid_text),
@@ -240,7 +217,7 @@ class CharacterTokenizer:
         return len(self.id_to_token)
 
     def save_tokenizer(self, save_path: str = None):
-        """Save the ordered vocabulary to character_tokenizer.json."""
+        
         if not self._ready:
             raise ValueError("Character tokenizer not trained/loaded.")
 
@@ -263,7 +240,6 @@ class CharacterTokenizer:
             json.dump(payload, file, ensure_ascii=False, indent=2)
 
     def load_tokenizer(self, path: str):
-        """Load and validate a saved character vocabulary."""
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"Tokenizer file not found: {path}")
@@ -301,7 +277,7 @@ class CharacterTokenizer:
         valid_tokens: jnp.ndarray,
         test_tokens: jnp.ndarray
     ):
-        """Save encoded splits in the format consumed by DataLoader."""
+        
         save_dir = DIR / "outputs" / "tokenized_data"
         save_dir.mkdir(parents=True, exist_ok=True)
         np.save(save_dir / "train_tokens.npy", np.asarray(train_tokens))
