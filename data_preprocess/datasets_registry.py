@@ -11,9 +11,11 @@ switching datasets is a one-line change in config.py with no manual file
 handling and no redundant re-downloading or re-tokenizing on repeat runs.
 
 Supported values for config.dataset (case/hyphen/space/underscore-insensitive):
-    "tinyshakespeare"   -> Tiny Shakespeare (bundled with the repo)
-    "wikitext2"          -> WikiText-2-raw-v1  (auto-downloaded via HF datasets)
-    "wikitext103"        -> WikiText-103-raw-v1 (auto-downloaded via HF datasets)
+    "tinyshakespeare"   -> Tiny Shakespeare (bundled with the repo) has 200K words
+    "wikitext2"          -> WikiText-2-raw-v1  (auto-downloaded via HF datasets) has 2,550K words
+    "wikitext103"        -> WikiText-103-raw-v1 (auto-downloaded via HF datasets) 103,690K words
+    "ptb"                -> Penn Treebank (auto-downloaded via HF datasets) 1000K words
+    "rottentomatoes"      -> Rotten Tomatoes movie review sentences (auto-downloaded via HF datasets) 230K words
 
 Usage:
     from data_preprocess.datasets_registry import prepare_dataset
@@ -36,12 +38,38 @@ _ALIASES = {
     "tinyshakespeare": ["tinyshakespeare", "tinyshakespear", "shakespeare", "tiny_shakespeare"],
     "wikitext2": ["wikitext2", "wikitext-2", "wt2"],
     "wikitext103": ["wikitext103", "wikitext-103", "wt103"],
+    "ptb": ["ptb", "penntreebank", "penn-treebank", "penn_treebank", "ptbtextonly", "ptb_text_only"],
+    "rottentomatoes": ["rottentomatoes", "rotten-tomatoes", "rotten_tomatoes", "rt", "moviereviews"],
 }
 
 # Hugging Face `Salesforce/wikitext` config name for each wikitext variant
-_HF_CONFIG = {
-    "wikitext2": "wikitext-2-raw-v1",
-    "wikitext103": "wikitext-103-raw-v1",
+
+
+_HF_DATASETS = {
+    "wikitext2": {
+        "path": "Salesforce/wikitext",
+        "config": "wikitext-2-raw-v1",
+        "text_field": "text",
+        "splits": {"train": "train", "validation": "valid", "test": "test"},
+    },
+    "wikitext103": {
+        "path": "Salesforce/wikitext",
+        "config": "wikitext-103-raw-v1",
+        "text_field": "text",
+        "splits": {"train": "train", "validation": "valid", "test": "test"},
+    },
+    "ptb": {
+        "path": "ptb-text-only/ptb_text_only",
+        "config": None,
+        "text_field": "sentence",
+        "splits": {"train": "train", "validation": "valid", "test": "test"},
+    },
+    "rottentomatoes": {
+        "path": "cornell-movie-review-data/rotten_tomatoes",
+        "config": None,
+        "text_field": "text",
+        "splits": {"train": "train", "validation": "valid", "test": "test"},
+    },
 }
 
 # Fallback source if no local Tiny Shakespeare files are found at all
@@ -107,29 +135,30 @@ def _download_tinyshakespeare(data_dir: Path) -> None:
         raise
 
 
-def _download_wikitext(canonical_name: str, data_dir: Path) -> None:
-    """Download and split a WikiText variant via the Hugging Face `datasets` library."""
+def _download_hf_dataset(canonical_name: str, data_dir: Path) -> None:
+    """Download and split any dataset registered in _HF_DATASETS via the Hugging Face `datasets` library."""
     try:
         from datasets import load_dataset
     except ImportError as e:
         raise ImportError(
-            "The 'datasets' package is required to download WikiText. "
+            f"The 'datasets' package is required to download '{canonical_name}'. "
             "Install it with: pip install datasets"
         ) from e
 
-    print(f"[datasets_registry] Downloading {canonical_name} from Hugging Face "
-          f"(config='{_HF_CONFIG[canonical_name]}')...")
+    spec = _HF_DATASETS[canonical_name]
+    config_note = f", config='{spec['config']}'" if spec["config"] else ""
+    print(f"[datasets_registry] Downloading '{canonical_name}' from Hugging Face "
+          f"({spec['path']}{config_note})...")
     try:
-        ds = load_dataset("Salesforce/wikitext", _HF_CONFIG[canonical_name])
-        split_map = {"train": "train.txt", "validation": "valid.txt", "test": "test.txt"}
-        for hf_split, filename in split_map.items():
-            text = "\n".join(ds[hf_split]["text"])
+        ds = load_dataset(spec["path"], spec["config"]) if spec["config"] else load_dataset(spec["path"])
+        for hf_split, local_split in spec["splits"].items():
+            text = "\n".join(ds[hf_split][spec["text_field"]])
+            filename = f"{local_split}.txt"
             (data_dir / filename).write_text(text, encoding="utf-8")
             print(f"  wrote {filename} ({len(text):,} chars)")
     except Exception:
         _cleanup_partial(data_dir)
         raise
-
 
 def prepare_dataset(name: str) -> Tuple[Path, Path]:
     """
@@ -156,11 +185,12 @@ def prepare_dataset(name: str) -> Tuple[Path, Path]:
         print(f"[datasets_registry] Using cached '{canonical}' data at {data_dir}")
         return data_dir, output_dir
 
+
     if canonical == "tinyshakespeare":
         if not _migrate_legacy_tinyshakespeare(data_dir):
             _download_tinyshakespeare(data_dir)
     else:
-        _download_wikitext(canonical, data_dir)
+        _download_hf_dataset(canonical, data_dir)   # was: _download_wikitext(canonical, data_dir)
 
     if not _splits_present(data_dir):
         raise RuntimeError(
