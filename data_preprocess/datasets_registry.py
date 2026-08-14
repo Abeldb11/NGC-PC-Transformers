@@ -58,18 +58,20 @@ _HF_DATASETS = {
         "text_field": "text",
         "splits": {"train": "train", "validation": "valid", "test": "test"},
     },
-    "ptb": {
-        "path": "ptb-text-only/ptb_text_only",
-        "config": None,
-        "text_field": "sentence",
-        "splits": {"train": "train", "validation": "valid", "test": "test"},
-    },
+
+    
     "rottentomatoes": {
         "path": "cornell-movie-review-data/rotten_tomatoes",
         "config": None,
         "text_field": "text",
         "splits": {"train": "train", "validation": "valid", "test": "test"},
     },
+}
+
+_PTB_URLS = {
+    "train": "https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.train.txt",
+    "valid": "https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.valid.txt",
+    "test": "https://raw.githubusercontent.com/wojzaremba/lstm/master/data/ptb.test.txt",
 }
 
 # Fallback source if no local Tiny Shakespeare files are found at all
@@ -133,6 +135,21 @@ def _download_tinyshakespeare(data_dir: Path) -> None:
     except Exception:
         _cleanup_partial(data_dir)
         raise
+    
+def _download_ptb(data_dir: Path) -> None:
+    """Fetch Penn Treebank directly (bypasses HF `datasets` — see _PTB_URLS comment)."""
+    print("[datasets_registry] Downloading Penn Treebank from raw source "
+          "(bypassing HF datasets — its repo's loading script is no longer supported)...")
+    try:
+        for split, url in _PTB_URLS.items():
+            with urllib.request.urlopen(url) as response:
+                text = response.read().decode("utf-8")
+            filename = f"{split}.txt"
+            (data_dir / filename).write_text(text, encoding="utf-8")
+            print(f"  wrote {filename} ({len(text):,} chars)")
+    except Exception:
+        _cleanup_partial(data_dir)
+        raise
 
 
 def _download_hf_dataset(canonical_name: str, data_dir: Path) -> None:
@@ -189,6 +206,8 @@ def prepare_dataset(name: str) -> Tuple[Path, Path]:
     if canonical == "tinyshakespeare":
         if not _migrate_legacy_tinyshakespeare(data_dir):
             _download_tinyshakespeare(data_dir)
+    elif canonical == "ptb":
+        _download_ptb(data_dir)
     else:
         _download_hf_dataset(canonical, data_dir)   # was: _download_wikitext(canonical, data_dir)
 
