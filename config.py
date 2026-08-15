@@ -2,7 +2,7 @@ class Config:
     SEED = 42
     seq_len =32
     n_embed = 128
-    batch_size = 32
+    batch_size = 8
     vocab_size = 11711# data vocab size + special tokens = 11706 + 4
     n_heads = 8
     n_layers = 4
@@ -12,7 +12,7 @@ class Config:
     exp_dir = "exp" 
     pos_learnable = True
     optim_type = "sgd"
-    epoch = 1
+    epoch = 5
     n_iter= 26
     tau_o = 20
     # Approximate Xavier scaling: 1 / sqrt(512) is about 0.04
