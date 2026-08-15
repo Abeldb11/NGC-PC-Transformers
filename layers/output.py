@@ -34,7 +34,7 @@ class Output:
                                     bias_init=dist.constant(value=0.), 
                                     prior=("constant", 0.), 
                                     sign_value=-1., 
-                                    optim_type="adam", 
+                                    optim_type= optim_type, 
                                     eta=config.eta_o, w_bound=1., key=subkeys[4])
           
         self.e_out = ErrorCell("e_out", n_units=vocab_size, batch_size=batch_size * seq_len)
