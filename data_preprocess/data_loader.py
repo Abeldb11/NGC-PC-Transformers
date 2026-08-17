@@ -5,7 +5,7 @@ import sys
 import numpy as np
 DIR = Path(__file__).parent
 sys.path.append(str(DIR.parent))
-from datasets_registry import prepare_dataset
+from data_preprocess.datasets_registry import prepare_dataset
 from config import Config as config
 
 class DataLoader:
