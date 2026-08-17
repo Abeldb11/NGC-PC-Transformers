@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import sys
 import os
-from data_preprocess.datasets_registry import prepare_dataset
+from datasets_registry import prepare_dataset
 """ to run: python -m data_preprocess.tokenizer """
 
 DIR = Path(__file__).parent
@@ -59,7 +59,7 @@ class BPETokenizer:
         lines = all_text.splitlines() or [all_text]
         self.tokenizer.train_from_iterator(lines, trainer=trainer, length=len(lines))
 
-        # self.tokenizer.train_from_iterator([all_text], trainer=trainer)
+        
 
     def load_tokenizer(self, path: str):
         """
@@ -69,12 +69,6 @@ class BPETokenizer:
         if not path.exists():
             raise FileNotFoundError(f"Tokenizer file not found: {path}")
         self.tokenizer = Tokenizer.from_file(str(path))
-
-    #def encode(self, text: str) -> jnp.ndarray:
-        #if self.tokenizer is None:
-           # raise ValueError("Tokenizer not trained/loaded.")
-        #encoded = self.tokenizer.encode(text)
-        #return jnp.array(encoded.ids, dtype=jnp.int32)
 
     
 

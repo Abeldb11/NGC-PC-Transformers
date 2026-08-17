@@ -5,7 +5,7 @@ import sys
 import numpy as np
 DIR = Path(__file__).parent
 sys.path.append(str(DIR.parent))
-from data_preprocess.datasets_registry import prepare_dataset
+from datasets_registry import prepare_dataset
 from config import Config as config
 
 class DataLoader:
@@ -21,9 +21,6 @@ class DataLoader:
 
     def load_and_prepare_data(self):
         """Load tokenized data and prepare for training"""
-        #train_tokens = jnp.load(self.data_dir / "train_tokens.npy")
-        #valid_tokens = jnp.load(self.data_dir / "valid_tokens.npy")
-        #test_tokens = jnp.load(self.data_dir / "test_tokens.npy")
         train_tokens = np.load(self.data_dir / "train_tokens.npy")   # np.load, not jnp.load
         valid_tokens = np.load(self.data_dir / "valid_tokens.npy")
         test_tokens  = np.load(self.data_dir / "test_tokens.npy")

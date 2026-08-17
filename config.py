@@ -41,4 +41,4 @@ class Config:
     # set True to Use jax.lax.scan fused advance loop (faster, minor floating-point differences from the normal python loop)
     fused_advance = True
     # "tinyshakespeare", "ptb", "rottentomatoes" "wikitext2", "wikitext103", ""
-    dataset = "ptb"
+    dataset = "tinyshakespeare"
