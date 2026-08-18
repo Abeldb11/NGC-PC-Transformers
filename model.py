@@ -1,4 +1,5 @@
 #import
+import types
 import jax
 from ngclearn import Context, MethodProcess
 from ngclearn.utils.io_utils import makedir
@@ -20,6 +21,51 @@ import numpy as np
 from utils.errorcell import GaussianErrorCell as ErrorCell
 from utils.ratecell import RateCell
 
+
+def _bind_w_out_adam_safe_io(w_out):
+    """
+    Overrides .save()/.load() on a single HebbianSynapse instance (W_out)
+    so its Adam opt_params -- (m_list, v_list, t), where m_list/v_list each
+    hold a weights-shaped array and a differently-shaped biases array --
+    gets flattened into separate, homogeneously-shaped keys before saving,
+    and reassembled on load. Everything else on the component still goes
+    through the normal per-compartment save/load behavior unchanged.
+    """
+    def _save(self, directory):
+        file_name = directory + "/" + self.name + ".npz"
+        data = {}
+        for comp_name, comp in self.compartments:
+            if comp_name == "opt_params":
+                continue
+            if not comp.targeted and comp.auto_save:
+                data[comp_name] = comp.get()
+        m, v, t = self.opt_params.get()
+        data["opt_params_m_weights"] = m[0]
+        data["opt_params_m_biases"] = m[1]
+        data["opt_params_v_weights"] = v[0]
+        data["opt_params_v_biases"] = v[1]
+        data["opt_params_t"] = t
+        jnp.savez(file_name, **data)
+
+    def _load(self, directory):
+        file_name = directory + "/" + self.name + ".npz"
+        data = jnp.load(file_name)
+        for comp_name, comp in self.compartments:
+            if comp_name == "opt_params":
+                continue
+            d = data.get(comp_name, None)
+            if d is not None:
+                comp.set(d)
+        if "opt_params_m_weights" in data:
+            opt_params = (
+                [data["opt_params_m_weights"], data["opt_params_m_biases"]],
+                [data["opt_params_v_weights"], data["opt_params_v_biases"]],
+                data["opt_params_t"],
+            )
+            self.opt_params.set(opt_params)
+
+    w_out.save = types.MethodType(_save, w_out)
+    w_out.load = types.MethodType(_load, w_out)
 
 
 class NGCTransformer:
@@ -78,7 +124,7 @@ class NGCTransformer:
                 self.blocks.append(block)   
                     
             self.output = Output(dkey=subkeys[3], n_embed=self.n_embed, seq_len=self.seq_len, batch_size=self.batch_size, vocab_size=self.vocab_size, eta=eta, optim_type=optim_type, wlb=wlb, wub=wub, tau_m=tau_m)
-                
+            _bind_w_out_adam_safe_io(self.output.W_out)   
             self.z_target=RateCell("z_target", n_units= self.vocab_size, tau_m=0., act_fx="identity", batch_size=self.batch_size * self.seq_len) 
             self.z_actfx= RateCell("z_actfx", n_units= self.vocab_size, tau_m=0., act_fx="softmax", batch_size=self.batch_size * self.seq_len)
             self.projection = Projection(dkey=subkeys[29], n_embed=self.n_embed, seq_len=self.seq_len, batch_size=self.batch_size,
@@ -466,6 +512,7 @@ class NGCTransformer:
         self.embedding.W_embed.pos_weights.set(self.circuit.get_components("W_embed").pos_weights.get())
         self.output.W_out.weights.set(self.circuit.get_components("W_out").weights.get())
         self.output.W_out.biases.set(self.circuit.get_components("W_out").biases.get())
+        self.output.W_out.load("{}/{}/component/custom".format(model_directory, self.model_name))
       
         self.projection.q_out_Ratecell.z.set( self.circuit.get_components("q_out_Ratecell").z.get())
         self.projection.eq_target.dmu.set( self.circuit.get_components("eq_target").dmu.get())
