@@ -11,7 +11,7 @@ class Config:
     eta_o= 4.919042890915579e-03
     exp_dir = "exp" 
     pos_learnable = True
-    optim_type = "sgd"
+    optim_type = "adam"
     epoch = 1
     n_iter= 26
     tau_o = 20
