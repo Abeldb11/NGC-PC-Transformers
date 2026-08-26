@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import sys
 import os
-from data_preprocess.datasets_registry import prepare_dataset
+from datasets_registry import prepare_dataset
 """ to run: python -m data_preprocess.tokenizer """
 
 DIR = Path(__file__).parent
