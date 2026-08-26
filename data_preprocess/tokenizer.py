@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import sys
 import os
+import json 
 from datasets_registry import prepare_dataset
 """ to run: python -m data_preprocess.tokenizer """
 
@@ -26,6 +27,176 @@ try:
 except Exception:
     tqdm = None
 
+class CharacterTokenizer:
+    """Deterministic character-level tokenizer. """
+
+    PAD_TOKEN = "<pad>"
+    UNK_TOKEN = "<unk>"
+    BOS_TOKEN = "<bos>"
+    EOS_TOKEN = "<eos>"
+    SPECIAL_TOKENS = (PAD_TOKEN, UNK_TOKEN, BOS_TOKEN, EOS_TOKEN)
+
+    def __init__(self):
+        self.char_to_id = {}
+        self.id_to_token = []
+        self._ready = False
+        self.data_dir, self.output_dir = prepare_dataset(getattr(config, "dataset", "tinyshakespeare"))
+
+    @property
+    def pad_token_id(self) -> int:
+        return self.char_to_id[self.PAD_TOKEN]
+
+    @property
+    def unk_token_id(self) -> int:
+        return self.char_to_id[self.UNK_TOKEN]
+
+    @property
+    def bos_token_id(self) -> int:
+        return self.char_to_id[self.BOS_TOKEN]
+
+    @property
+    def eos_token_id(self) -> int:
+        return self.char_to_id[self.EOS_TOKEN]
+
+    def is_ready(self) -> bool:
+        return self._ready
+
+    def train_tokenizer(self, text: str):
+        
+        if not isinstance(text, str):
+            raise TypeError("CharacterTokenizer training data must be a string.")
+
+        characters = sorted(set(text))
+        self.id_to_token = list(self.SPECIAL_TOKENS) + characters
+        self.char_to_id = {
+            token: token_id
+            for token_id, token in enumerate(self.id_to_token)
+        }
+        self._ready = True
+
+    def encode(self, text: str) -> jnp.ndarray:
+        
+        if not self._ready:
+            raise ValueError("Character tokenizer not trained/loaded.")
+        if not isinstance(text, str):
+            raise TypeError("Text to encode must be a string.")
+
+        token_ids = [
+            self.char_to_id.get(character, self.unk_token_id)
+            for character in text
+        ]
+        return jnp.array(token_ids, dtype=jnp.int32)
+
+    def decode(self, tokens, skip_special_tokens: bool = True) -> str:
+        
+        if not self._ready:
+            raise ValueError("Character tokenizer not trained/loaded.")
+        if hasattr(tokens, "tolist"):
+            tokens = tokens.tolist()
+
+        decoded = []
+        for token_id in tokens:
+            token_id = int(token_id)
+
+            if token_id < 0 or token_id >= len(self.id_to_token):
+                decoded.append(self.UNK_TOKEN)
+                continue
+
+            token = self.id_to_token[token_id]
+            if token == self.UNK_TOKEN:
+                decoded.append(self.UNK_TOKEN)
+            elif token in (self.PAD_TOKEN, self.BOS_TOKEN, self.EOS_TOKEN):
+                if not skip_special_tokens:
+                    decoded.append(token)
+            else:
+                decoded.append(token)
+
+        return "".join(decoded)
+
+    def tokenize_splits(
+        self,
+        train_text: str,
+        valid_text: str,
+        test_text: str
+    ):
+        
+        return (
+            self.encode(train_text),
+            self.encode(valid_text),
+            self.encode(test_text),
+        )
+
+    def get_vocab_size(self) -> int:
+        if not self._ready:
+            raise ValueError("Character tokenizer not trained/loaded.")
+        return len(self.id_to_token)
+
+    def load_data(self, data_dir: str = None):
+        data_dir = Path(data_dir) if data_dir else self.data_dir
+        with open(data_dir / "train.txt", "r", encoding="utf-8") as f:
+            train_text = f.read()
+        with open(data_dir / "valid.txt", "r", encoding="utf-8") as f:
+            valid_text = f.read()
+        with open(data_dir / "test.txt", "r", encoding="utf-8") as f:
+            test_text = f.read()
+        all_text = train_text + valid_text + test_text
+        return train_text, valid_text, test_text, all_text
+
+    def save_tokenizer(self, save_path: str = None):
+        if not self._ready:
+            raise ValueError("Character tokenizer not trained/loaded.")
+
+        save_path = Path(save_path) if save_path else self.output_dir / "tokenizer"
+        Path(save_path).mkdir(parents=True, exist_ok=True)
+
+        payload = {
+            "type": "character",
+            "version": 1,
+            "special_tokens": list(self.SPECIAL_TOKENS),
+            "id_to_token": self.id_to_token,
+        }
+        output_file = Path(save_path) / "character_tokenizer.json"
+        with open(output_file, "w", encoding="utf-8") as file:
+            json.dump(payload, file, ensure_ascii=False, indent=2)
+
+    def load_tokenizer(self, path: str):
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Tokenizer file not found: {path}")
+
+        with open(path, "r", encoding="utf-8") as file:
+            payload = json.load(file)
+
+        tokens = payload.get("id_to_token")
+        if not isinstance(tokens, list) or not all(
+            isinstance(token, str) for token in tokens
+        ):
+            raise ValueError(
+                "Invalid character tokenizer file: id_to_token must be a list "
+                "of strings."
+            )
+        if tokens[:len(self.SPECIAL_TOKENS)] != list(self.SPECIAL_TOKENS):
+            raise ValueError(
+                "Invalid character tokenizer file: special-token IDs changed."
+            )
+        if len(tokens) != len(set(tokens)):
+            raise ValueError(
+                "Invalid character tokenizer file: duplicate tokens found."
+            )
+
+        self.id_to_token = tokens
+        self.char_to_id = {
+            token: token_id
+            for token_id, token in enumerate(tokens)
+        }
+        self._ready = True
+
+    def save_data(self, train_tokens, valid_tokens, test_tokens):
+        save_dir = self.output_dir / "tokenized_data"
+        Path(save_dir).mkdir(parents=True, exist_ok=True)
+        np.save(f"{save_dir}/train_tokens.npy", np.array(train_tokens))
+        np.save(f"{save_dir}/valid_tokens.npy", np.array(valid_tokens))
+        np.save(f"{save_dir}/test_tokens.npy", np.array(test_tokens))
 
 class BPETokenizer:
     def __init__(self, vocab_size: int = VOCAB_SIZE):
@@ -36,6 +207,7 @@ class BPETokenizer:
 
 
     def load_data(self, data_dir: str = None):
+        
         data_dir = Path(data_dir) if data_dir else self.data_dir
         with open(data_dir / "train.txt", "r", encoding="utf-8") as f:
             train_text = f.read()
@@ -150,13 +322,32 @@ class TiktokenAdapter:
 def get_tokenizer(cfg: config = None):
     """
     Factory: returns a tokenizer instance according to cfg.tokenizer.
-    cfg.tokenizer: "BPE" (default) or "tiktoken" (case-insensitive).
+    cfg.tokenizer: "BPE" (default) or "tiktoken" (case-insensitive) or "character"/"char".
     If "BPE" and cfg.tokenizer_vocab_file is set, BPETokenizer.load_tokenizer(...) will be used.
     """
     if cfg is None:
         cfg = config()
 
     backend = getattr(cfg, "tokenizer", "BPE")
+    #character-tokenizer
+    if isinstance(backend, str) and backend.lower() in ("character", "char"):
+        print("Using tokenizer backend: character")
+        character_tokenizer = CharacterTokenizer()
+
+        vocab_file = getattr(cfg, "character_tokenizer_vocab_file", None)
+        if vocab_file is None:
+            default_file = (
+                character_tokenizer.output_dir
+                / "tokenizer"
+                / "character_tokenizer.json"
+            )
+            if default_file.exists():
+                vocab_file = default_file
+
+        if vocab_file:
+            character_tokenizer.load_tokenizer(vocab_file)
+
+        return character_tokenizer
     if isinstance(backend, str) and backend.lower() == "tiktoken":
         enc_name = getattr(cfg, "tokenizer_name", "gpt2")
         print(f"Using tokenizer backend: tiktoken (encoding='{enc_name}')")
@@ -224,6 +415,21 @@ def main():
         train_tokens, valid_tokens, test_tokens = tokenizer.tokenize_splits(train_text, valid_text, test_text)
         tokenizer.save_tokenizer()
         tokenizer.save_data(train_tokens, valid_tokens, test_tokens)
+    elif isinstance(tokenizer, CharacterTokenizer):
+        print("Preparing character tokenizer and tokenizing data...")
+
+        if not tokenizer.is_ready():
+            tokenizer.train_tokenizer(all_text)
+
+        train_tokens, valid_tokens, test_tokens = tokenizer.tokenize_splits(
+            train_text,
+            valid_text,
+            test_text
+        )
+        tokenizer.save_tokenizer()
+        tokenizer.save_data(train_tokens, valid_tokens, test_tokens)
+
+        print(f"Character vocabulary size: {tokenizer.get_vocab_size()}")
     else:
         # tokenizer is a TiktokenAdapter
         enc_name = getattr(cfg, "tokenizer_name", "gpt2")
@@ -232,7 +438,7 @@ def main():
         train_ids = _tokenize_with_progress(tokenizer, train_text, desc="Tokenize train")
         valid_ids = _tokenize_with_progress(tokenizer, valid_text, desc="Tokenize valid")
         test_ids = _tokenize_with_progress(tokenizer, test_text, desc="Tokenize test")
-        save_dir = DIR / "outputs" / "tokenized_data"
+        save_dir = loader.output_dir / "tokenized_data"
         Path(save_dir).mkdir(parents=True, exist_ok=True)
         np.save(f"{save_dir}/train_tokens.npy", train_ids)
         np.save(f"{save_dir}/valid_tokens.npy", valid_ids)
