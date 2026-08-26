@@ -40,6 +40,7 @@ class CharacterTokenizer:
         self.char_to_id = {}
         self.id_to_token = []
         self._ready = False
+        self.data_dir, self.output_dir = prepare_dataset(getattr(config, "dataset", "tinyshakespeare"))
 
     @property
     def pad_token_id(self) -> int:
@@ -130,18 +131,23 @@ class CharacterTokenizer:
             raise ValueError("Character tokenizer not trained/loaded.")
         return len(self.id_to_token)
 
+    def load_data(self, data_dir: str = None):
+        data_dir = Path(data_dir) if data_dir else self.data_dir
+        with open(data_dir / "train.txt", "r", encoding="utf-8") as f:
+            train_text = f.read()
+        with open(data_dir / "valid.txt", "r", encoding="utf-8") as f:
+            valid_text = f.read()
+        with open(data_dir / "test.txt", "r", encoding="utf-8") as f:
+            test_text = f.read()
+        all_text = train_text + valid_text + test_text
+        return train_text, valid_text, test_text, all_text
+
     def save_tokenizer(self, save_path: str = None):
-        
         if not self._ready:
             raise ValueError("Character tokenizer not trained/loaded.")
 
-        if save_path is None:
-            save_dir = DIR / "outputs" / "tokenizer"
-        else:
-            save_dir = DIR / save_path
-
-        save_dir = Path(save_dir)
-        save_dir.mkdir(parents=True, exist_ok=True)
+        save_path = Path(save_path) if save_path else self.output_dir / "tokenizer"
+        Path(save_path).mkdir(parents=True, exist_ok=True)
 
         payload = {
             "type": "character",
@@ -149,7 +155,7 @@ class CharacterTokenizer:
             "special_tokens": list(self.SPECIAL_TOKENS),
             "id_to_token": self.id_to_token,
         }
-        output_file = save_dir / "character_tokenizer.json"
+        output_file = Path(save_path) / "character_tokenizer.json"
         with open(output_file, "w", encoding="utf-8") as file:
             json.dump(payload, file, ensure_ascii=False, indent=2)
 
@@ -185,18 +191,12 @@ class CharacterTokenizer:
         }
         self._ready = True
 
-    def save_data(
-        self,
-        train_tokens: jnp.ndarray,
-        valid_tokens: jnp.ndarray,
-        test_tokens: jnp.ndarray
-    ):
-        
-        save_dir = DIR / "outputs" / "tokenized_data"
-        save_dir.mkdir(parents=True, exist_ok=True)
-        np.save(save_dir / "train_tokens.npy", np.asarray(train_tokens))
-        np.save(save_dir / "valid_tokens.npy", np.asarray(valid_tokens))
-        np.save(save_dir / "test_tokens.npy", np.asarray(test_tokens))
+    def save_data(self, train_tokens, valid_tokens, test_tokens):
+        save_dir = self.output_dir / "tokenized_data"
+        Path(save_dir).mkdir(parents=True, exist_ok=True)
+        np.save(f"{save_dir}/train_tokens.npy", np.array(train_tokens))
+        np.save(f"{save_dir}/valid_tokens.npy", np.array(valid_tokens))
+        np.save(f"{save_dir}/test_tokens.npy", np.array(test_tokens))
 
 class BPETokenizer:
     def __init__(self, vocab_size: int = VOCAB_SIZE):
@@ -207,6 +207,7 @@ class BPETokenizer:
 
 
     def load_data(self, data_dir: str = None):
+        
         data_dir = Path(data_dir) if data_dir else self.data_dir
         with open(data_dir / "train.txt", "r", encoding="utf-8") as f:
             train_text = f.read()
@@ -336,8 +337,7 @@ def get_tokenizer(cfg: config = None):
         vocab_file = getattr(cfg, "character_tokenizer_vocab_file", None)
         if vocab_file is None:
             default_file = (
-                DIR
-                / "outputs"
+                character_tokenizer.output_dir
                 / "tokenizer"
                 / "character_tokenizer.json"
             )
@@ -438,7 +438,7 @@ def main():
         train_ids = _tokenize_with_progress(tokenizer, train_text, desc="Tokenize train")
         valid_ids = _tokenize_with_progress(tokenizer, valid_text, desc="Tokenize valid")
         test_ids = _tokenize_with_progress(tokenizer, test_text, desc="Tokenize test")
-        save_dir = DIR / "outputs" / "tokenized_data"
+        save_dir = loader.output_dir / "tokenized_data"
         Path(save_dir).mkdir(parents=True, exist_ok=True)
         np.save(f"{save_dir}/train_tokens.npy", train_ids)
         np.save(f"{save_dir}/valid_tokens.npy", valid_ids)
