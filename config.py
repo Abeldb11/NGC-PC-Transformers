@@ -11,8 +11,8 @@ class Config:
     eta_o= 4.919042890915579e-03
     exp_dir = "exp" 
     pos_learnable = True
-    optim_type = "adam"
-    epoch = 1
+    optim_type = "sgd"
+    epoch = 5
     n_iter= 26
     tau_o = 20
     # Approximate Xavier scaling: 1 / sqrt(512) is about 0.04
