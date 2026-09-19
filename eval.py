@@ -18,38 +18,42 @@ jax.config.update("jax_compilation_cache_dir", "/tmp/jax_cache")
 jax.config.update("jax_persistent_cache_min_entry_size_bytes", 0)
 jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
 
-def eval_model(model: NGCTransformer, data_loader, vocab_size: int):
+def eval_model(model: NGCTransformer, data_loader, vocab_size: int, mode: str = "projection"):
     """
     Runs inference-only forward pass on a data loader and returns
     cross-entropy and perplexity.
     """
+    assert mode in ("projection", "settled")
     total_nll = 0.0
     total_tokens = 0
+    EFE = 0.
 
     for batch_idx, batch in enumerate(data_loader):
         inputs = batch[0][1]
         targets = batch[1][1]
 
         targets_flat = jax.nn.one_hot(targets.flatten(), vocab_size)
-        y_mu_inf, y_mu, EFE = model.process(obs=inputs,
-                                   lab=targets_flat,
-                                   adapt_synapses=False)
 
-        y_pred = y_mu_inf.reshape(-1, vocab_size)
+        if mode == "projection":
+            y_mu_inf, y_mu, EFE = model.process(obs=inputs,
+                                       lab=targets_flat,
+                                       adapt_synapses=False)
+            y_pred = y_mu_inf.reshape(-1, vocab_size)
+        else:
+            y_settled = model.infer_settled(obs=inputs)
+            y_pred = y_settled.reshape(-1, vocab_size)
+
         batch_ce_loss = measure_CatNLL(y_pred, targets_flat).mean()
         total_nll += batch_ce_loss * targets_flat.shape[0]
         total_tokens += targets_flat.shape[0]
 
         if batch_idx % 10 == 0:
             batch_ppl = jnp.exp(batch_ce_loss)
-            print(f" Eval Batch {batch_idx}: | CE = {batch_ce_loss:.4f} | PPL = {batch_ppl:.4f} | EFE:{EFE:.4f}")
+            print(f" Eval Batch {batch_idx} [{mode}]: | CE = {batch_ce_loss:.4f} | PPL = {batch_ppl:.4f} | EFE:{EFE:.4f}")
 
     ce = total_nll / total_tokens
     ppl = jnp.exp(ce)
     return ce, ppl, EFE
-
-
-
 
 def load_weights_into_model(model, model_dir):
     custom_dir = os.path.join(model_dir, "custom")
@@ -107,9 +111,43 @@ if __name__ == "__main__":
     )
     data_loader = DataLoader(seq_len=config.seq_len, batch_size=config.batch_size)
     _, _, test_loader = data_loader.load_and_prepare_data()
+    
+
+
     start_time = time.time()
-    test_ce, test_ppl, test_efe = eval_model(model, test_loader, config.vocab_size)
+    test_ce, test_ppl, test_efe = eval_model(model, test_loader, config.vocab_size, mode="projection")
     elapsed_time = time.time() - start_time
-    print("\nFinal Test Evaluation:")
-    print(f"\nCE: {test_ce:.4f} | PPL: {test_ppl:.4f} | EFE:{test_efe:.4f}")
+    print("\nFinal Test Evaluation (projection / y_mu_inf -- what generation.py currently uses):")
+    print(f"CE: {test_ce:.4f} | PPL: {test_ppl:.4f} | EFE:{test_efe:.4f}")
+    print(f"Total Evaluation time: {elapsed_time:.2f} seconds ")
+
+    model_settled = NGCTransformer(
+        dkey=dkey,
+        batch_size=config.batch_size,
+        seq_len=config.seq_len,
+        n_embed=config.n_embed,
+        vocab_size=config.vocab_size,
+        n_layers=config.n_layers,
+        n_heads=config.n_heads,
+        T=config.n_iter,
+        dt=1., tau_m=config.tau_m,
+        act_fx=config.act_fx,
+        eta=config.eta,
+        dropout_rate=config.dropout_rate,
+        exp_dir="exp",
+        model_name="ngc_transformer",
+        loadDir=None,
+        pos_learnable=config.pos_learnable,
+        optim_type=config.optim_type,
+        wub=config.wub,
+        wlb=config.wlb,
+        generate=True,
+    )
+    load_weights_into_model(model_settled, "exp/ngc_transformer/component")
+
+    start_time = time.time()
+    settled_ce, settled_ppl, _ = eval_model(model_settled, test_loader, config.vocab_size, mode="settled")
+    elapsed_time = time.time() - start_time
+    print("\nFinal Test Evaluation (settled / T-step label-free inference):")
+    print(f"CE: {settled_ce:.4f} | PPL: {settled_ppl:.4f}")
     print(f"Total Evaluation time: {elapsed_time:.2f} seconds ")

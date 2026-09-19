@@ -79,7 +79,7 @@ def main():
         dev_ce, dev_ppl,_ = eval_model(model, valid_loader, vocab_size)
         print(f"Epoch {i} Summary: Train CE = {train_ce:.4f}, Train PPL = {train_ppl:.4f}, Val CE = {dev_ce:.4f}, Val PPL = {dev_ppl:.4f}, Avg EFE = {avg_train_EFE:.4f}")
         if i == (epoch-1):
-          model.save_to_disk(params_only=False) # save final state of model to disk
+          model.save_to_disk(params_only=True) # save final state of model to disk
     total_time = time.time() - start_time
     print(f"\nTraining finished.")
     print(f"Total training time: {total_time:.2f} seconds ({total_time/60:.2f} min)")

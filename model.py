@@ -577,7 +577,22 @@ class NGCTransformer:
             
             block_proj.reshape_3d_to_2d_proj1.outputs.set(self.circuit.get_components(f"{p_prefix}_reshape_3d_to_2d_proj1").outputs.get())
             block_proj.q_attn_block = self.circuit.get_components(f"{p_prefix}_q_attn_block")
-          
+
+
+    def infer_settled(self, obs, T=None):
+        """
+        Label-free, iteratively-settled test-time inference.
+        Only valid if this model instance was constructed with generate=True.
+        """
+        if T is None:
+            T = self.T
+        self.reset.run()
+        self.clamp_input(obs)
+        for ts in range(T):
+            self.clamp_input(obs)
+            self.advance.run(t=ts, dt=1.)
+        y_mu_settled = self.z_actfx.zF.get()
+        return y_mu_settled     
 
 
     def process(self, obs, lab, adapt_synapses=True):
