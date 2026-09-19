@@ -197,4 +197,17 @@ if __name__ == "__main__":
     )
     print(generated_1)
 
+    from generation_eval import save_samples_for_run
+
+    prompts = ["ROMEO:", "JULIET:", "First Citizen:", "KING RICHARD:", "MENENIUS:"]
+    samples = []
+    rng = key_1
+    for p in prompts:
+        rng, k = jax.random.split(rng)
+        samples.append(generate_text(
+            model, tokenizer, prompt=p,
+            max_new_tokens=200, temperature=0.8, top_k=50, key=k,
+        ))
+
+    save_samples_for_run("samples/RUN_NAME_HERE", samples)
     
